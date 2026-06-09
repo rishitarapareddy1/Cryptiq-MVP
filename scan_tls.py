@@ -151,11 +151,11 @@ def save_results(results):
 
 def get_certs_from_ct_logs(domain):
     try:
-        url = f'https://crt.sh/?q=%.{domain}&output=json'
+        url = f'https://crt.sh/?q=%.{domain}&output=json&exclude=expired'
         response = requests.get(url, timeout=10)
         if response.status_code != 200:
             return []
-        certs = response.json()[:5]
+        certs = sorted(response.json(), key=lambda x: x['not_after'], reverse=True)[:5]
         results = []
         for cert in certs:
             results.append({
