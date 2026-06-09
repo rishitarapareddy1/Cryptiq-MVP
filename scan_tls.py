@@ -2,6 +2,7 @@ import subprocess
 import sys
 import json
 from datetime import datetime, timezone
+import requests
 
 
 def is_quantum_vulnerable(algorithm):
@@ -77,8 +78,8 @@ def get_issuer(raw_output):
     # return everything after 'issuer='
     # return 'Unknown' if not found
     for line in raw_output.split('\n'):
-        if 'issuer=' in line:
-            return line.split('issuer=')[1]
+        if 'Issuer:' in line and 'Public Key' not in line:
+            return line.split('Issuer:')[1].strip()
     return 'Unknown'
 
 def get_expiry(raw_output):
@@ -110,13 +111,62 @@ def get_days_until_expiry(expiry_string):
         return delta.days
     except Exception as e:
         return None
-        
+
 def get_risk_level(algorithm, days_until_expiry):
     if not is_quantum_vulnerable(algorithm):
         return 'Low'
     if days_until_expiry is not None and days_until_expiry < 60:
         return 'Critical'
     return 'High'
+
+def get_pqc_status(algorithm):
+    # if algorithm contains 'MLKEM' or 'Kyber' return 'hybrid_pqc'
+    # if algorithm is in the quantum vulnerable list return 'vulnerable'
+    # otherwise return 'unknown'
+    if 'MLKEM' in algorithm or 'Kyber' in algorithm:
+        return 'hybrid_pqc'
+    if is_quantum_vulnerable(algorithm):
+        return 'vulnerable'
+    return 'unknown'
+
+def get_subject(raw_output):
+     # look for line containing 'subject='
+    # line looks like: "subject=/CN=*.google.com"
+    # return everything after 'subject='
+    # return 'Unknown' if not found
+    for line in raw_output.split('\n'):
+        if 'Subject:' in line and 'Public Key' not in line:
+            return line.split('Subject:')[1].strip()
+    return 'Unknown'
+
+def save_results(results):
+    # generate a filename using datetime.now().strftime('%Y%m%d_%H%M%S')
+    # filename should look like: scan_results_20260609_143022.json
+    # save results as formatted JSON to that file
+    # print a message saying where it saved
+    filename = f'scan_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    with open(filename, 'w') as f:
+        json.dump(results, f, indent=2)
+    print(f'Results saved to {filename}')
+
+def get_certs_from_ct_logs(domain):
+    try:
+        url = f'https://crt.sh/?q=%.{domain}&output=json'
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            return []
+        certs = response.json()[:5]
+        results = []
+        for cert in certs:
+            results.append({
+                'issuer': cert['issuer_name'],
+                'common_name': cert['common_name'],
+                'not_before': cert['not_before'],
+                'not_after': cert['not_after']
+            })
+        return results
+    except Exception as e:
+        return []
 
 def scan_domain(domain):
     raw = get_tls_raw(domain)
@@ -125,13 +175,16 @@ def scan_domain(domain):
     algorithm = get_algorithm(raw)
     quantum_vulnerable = is_quantum_vulnerable(algorithm)
     keysize = get_key_size(raw)
-    issuer = get_issuer(raw)
-    expiry = get_expiry(cert_details)           # change raw to cert_details
-    signature_algorithm = get_signature_algorithm(cert_details)  # change raw to cert_details
+    issuer = get_issuer(cert_details)
+    expiry = get_expiry(cert_details)
+    signature_algorithm = get_signature_algorithm(cert_details)
     days_until_expiry = get_days_until_expiry(expiry)
     risk_level = get_risk_level(algorithm, days_until_expiry)
+    pqc_status = get_pqc_status(algorithm)
+    subject = get_subject(cert_details)
+    ct_logs = get_certs_from_ct_logs(domain)
     return {
-        'domain': domain,
+       'domain': domain,
         'tls_version': version,
         'algorithm': algorithm,
         'quantum_vulnerable': quantum_vulnerable,
@@ -140,9 +193,11 @@ def scan_domain(domain):
         'expiry': expiry,
         'signature_algorithm': signature_algorithm, 
         'days_until_expiry': days_until_expiry, 
-        'risk_level': risk_level
-    }
-
+        'risk_level': risk_level,
+        'pqc_status': pqc_status,
+        'subject': subject,
+        'ct_logs': ct_logs
+        }
 
 def scan_multiple(csv_file):
     # open the file
@@ -150,7 +205,6 @@ def scan_multiple(csv_file):
     # skip empty lines
     # call scan_domain() on each
     # return list of results
-
     results = []
     with open(csv_file, 'r') as f:
         for line in f:
@@ -165,6 +219,8 @@ if __name__ == '__main__':
     if target.endswith('.csv'):
         results = scan_multiple(target)
         print(json.dumps(results, indent=2))
+        save_results(results)
     else:
         result = scan_domain(target)
         print(json.dumps(result, indent=2))
+        save_results(result)
