@@ -3,7 +3,7 @@ import sys
 import json
 from datetime import datetime, timezone
 import requests
-
+import uuid
 
 def is_quantum_vulnerable(algorithm):
     # return True if algorithm is quantum vulnerable
@@ -214,13 +214,81 @@ def scan_multiple(csv_file):
                 results.append(result)
     return results
 
+
+
+def convert_to_cbom(scan_results):
+    # scan_results is either a single dict or a list of dicts
+    # if it's a single dict, wrap it in a list first
+    # build the top level structure:
+    #   bomFormat, specVersion, serialNumber, version, metadata, components
+    # for each result in scan_results call a helper function
+    #   build_component(result) that returns one component dict
+    # return the full cbom dict
+    if isinstance(scan_results, dict):
+        scan_results = [scan_results]
+    bom = {
+        'bomFormat': 'CycloneDX',
+        'specVersion': '1.6',
+        'serialNumber': str(uuid.uuid4()),
+        'version': 1,
+        'metadata': {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'component': {
+                'type': 'application',
+                'name': 'Cryptiq PQC Scanner'
+            }
+        },
+        'components': []
+    }
+
+    for result in scan_results:
+        bom['components'].append(build_component(result))
+    return bom
+
+def build_component(result):
+    return {
+        'type': 'cryptographic-asset',
+        'name': f"{result['domain']} TLS Certificate",
+        'cryptoProperties': {
+            'assetType': 'certificate',
+            'algorithmProperties': {
+                'primitive': result['algorithm'].lower(),
+                'keySize': result['keysize'],
+            },
+            'certificateProperties': {
+                'subjectName': result['subject'],
+                'issuerName': result['issuer'],
+                'notAfter': result['expiry'],
+                'signatureAlgorithm': result['signature_algorithm']
+            }
+        },
+        'properties': [
+            {'name': 'quantum_vulnerable', 'value': str(result['quantum_vulnerable']).lower()},
+            {'name': 'risk_level', 'value': result['risk_level']},
+            {'name': 'pqc_status', 'value': result['pqc_status']},
+            {'name': 'days_until_expiry', 'value': str(result['days_until_expiry'])},
+            {'name': 'tls_version', 'value': result['tls_version']}
+        ]
+        
+        }
+    
+    
+def save_cbom(cbom, filename):
+    with open(filename, 'w') as f:
+        json.dump(cbom, f, indent=2)
+    print(f'CBOM saved to {filename}')
+
 if __name__ == '__main__':
     target = sys.argv[1]
     if target.endswith('.csv'):
         results = scan_multiple(target)
         print(json.dumps(results, indent=2))
         save_results(results)
+        cbom_filename = f'cbom_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        save_cbom(convert_to_cbom(results), cbom_filename)
     else:
         result = scan_domain(target)
         print(json.dumps(result, indent=2))
         save_results(result)
+        cbom_filename = f'cbom_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        save_cbom(convert_to_cbom(result), cbom_filename)
