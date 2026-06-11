@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CryptiQ — Post-Quantum Cryptography Readiness for SaaS</title>
+<meta name="description" content="CryptiQ gives mid-market SaaS companies a self-serve crypto inventory, a customer-facing PQC readiness report, and continuous vendor tracking — so you can answer 'what's your post-quantum plan?' in your next security review." />
+
+<!-- Favicons -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="manifest" href="site.webmanifest" />
+<meta name="theme-color" content="#10141F" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=Public+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================
+     LATTICA — DESIGN TOKENS
+     ============================================ */
+  :root {
+    /* Color: ink, parchment, gold, sage, sienna */
+    --ink-deep:      #0A0E16;
+    --ink:           #10141F;
+    --ink-raised:   #161B28;
+    --ink-card:      #1C2230;
+    --ink-edge:      #2A3144;
+    --parchment:     #F4ECDF;
+    --parchment-dim: #D9D1C2;
+    --muted:         #8A8A98;
+    --muted-deep:    #5C6071;
+
+    --gold:          #D8A85F;
+    --gold-bright:   #ECC07A;
+    --gold-soft:     rgba(216, 168, 95, 0.12);
+    --sage:          #87A98B;
+    --sage-soft:     rgba(135, 169, 139, 0.14);
+    --sienna:        #C46B3D;
+    --sienna-soft:   rgba(196, 107, 61, 0.14);
+    --crimson:       #B14B47;
+
+    /* Typography */
+    --font-display:  'Fraunces', 'Times New Roman', serif;
+    --font-body:     'Public Sans', system-ui, -apple-system, sans-serif;
+    --font-mono:     'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+    /* Geometry */
+    --max-w:         1240px;
+    --gutter:        clamp(1.25rem, 4vw, 2.5rem);
+    --section-y:     clamp(5rem, 10vw, 8rem);
+
+    /* Motion */
+    --ease:          cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ============================================
+     RESET
+     ============================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--ink-deep);
+    color: var(--parchment);
+    font-family: var(--font-body);
+    font-weight: 380;
+    font-size: 16.5px;
+    line-height: 1.65;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  img, svg { display: block; max-width: 100%; }
+  button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ============================================
+     LATTICE BACKGROUND — subtle, ambient
+     ============================================ */
+  .lattice-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 80% 60% at 80% -10%, rgba(216, 168, 95, 0.08), transparent 50%),
+      radial-gradient(ellipse 60% 50% at 10% 100%, rgba(135, 169, 139, 0.05), transparent 50%),
+      var(--ink-deep);
+  }
+  .lattice-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(216, 168, 95, 0.18) 1px, transparent 1.5px);
+    background-size: 36px 36px;
+    background-position: 0 0;
+    opacity: 0.35;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 30%, transparent 80%);
+  }
+  .lattice-bg::after {
+    /* Grain */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.4'/></svg>");
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+  }
+
+  /* ============================================
+     LAYOUT
+     ============================================ */
+  .container {
+    width: 100%;
+    max-width: var(--max-w);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  section { padding-block: var(--section-y); position: relative; }
+
+  /* ============================================
+     TYPOGRAPHY
+     ============================================ */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 350;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+  }
+  .display em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    color: var(--gold);
+    font-weight: 320;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 1.5rem;
+    height: 1px;
+    background: var(--gold);
+    display: inline-block;
+  }
+  .section-heading {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.5vw, 3.5rem);
+    font-weight: 360;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 100, "SOFT" 50;
+    margin-block: 1.25rem 1rem;
+    max-width: 18ch;
+  }
+  .section-heading em {
+    font-style: italic;
+    color: var(--gold);
+    font-variation-settings: "opsz" 100, "SOFT" 100;
+  }
+  .lede {
+    font-family: var(--font-display);
+    font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+    font-weight: 360;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    color: var(--parchment-dim);
+    max-width: 56ch;
+    font-variation-settings: "opsz" 24;
+  }
+  p { color: var(--parchment-dim); max-width: 64ch; }
+  .mono { font-family: var(--font-mono); }
+
+  /* ============================================
+     NAV
+     ============================================ */
+  nav.topnav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    background: rgba(10, 14, 22, 0.75);
+    border-bottom: 1px solid rgba(216, 168, 95, 0.08);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 1.1rem;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+  .logo-mark {
+    width: 26px; height: 26px;
+    display: grid;
+    place-items: center;
+  }
+  .logo-mark svg { width: 100%; height: 100%; }
+  .nav-links {
+    display: flex;
+    gap: clamp(1rem, 3vw, 2.25rem);
+    list-style: none;
+    font-size: 0.92rem;
+    color: var(--parchment-dim);
+  }
+  .nav-links a {
+    transition: color 0.25s var(--ease);
+    position: relative;
+  }
+  .nav-links a:hover { color: var(--gold); }
+  .nav-cta {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 0.6rem 1.1rem;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    border-radius: 999px;
+    transition: all 0.25s var(--ease);
+    letter-spacing: 0.01em;
+  }
+  .nav-cta:hover {
+    background: var(--gold);
+    color: var(--ink-deep);
+  }
+  @media (max-width: 720px) {
+    .nav-links { display: none; }
+  }
+
+  /* ============================================
+     HERO
+     ============================================ */
+  .hero {
+    padding-block: clamp(5rem, 12vw, 9rem) clamp(4rem, 8vw, 6rem);
+    position: relative;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(3rem, 6vw, 4.5rem);
+    align-items: end;
+  }
+  @media (min-width: 980px) {
+    .hero-grid { grid-template-columns: 1.15fr 1fr; }
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.75rem, 7vw, 5.6rem);
+    font-weight: 320;
+    line-height: 0.96;
+    letter-spacing: -0.028em;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    margin-block: 1.75rem 1.5rem;
+    color: var(--parchment);
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    font-weight: 300;
+  }
+  .hero-lede {
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 1.6vw, 1.45rem);
+    font-weight: 370;
+    line-height: 1.5;
+    color: var(--parchment-dim);
+    max-width: 36ch;
+    font-variation-settings: "opsz" 24;
+    margin-top: 0.5rem;
+  }
+  .hero-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    align-items: center;
+  }
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink-deep);
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 0.95rem 1.6rem;
+    border-radius: 999px;
+    letter-spacing: 0.005em;
+    transition: all 0.3s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-primary:hover {
+    background: var(--gold-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 30px -10px rgba(216, 168, 95, 0.5);
+  }
+  .btn-primary svg { width: 14px; height: 14px; }
+  .btn-ghost {
+    color: var(--parchment);
+    font-weight: 500;
+    font-size: 0.92rem;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--ink-edge);
+    transition: all 0.3s var(--ease);
+  }
+  .btn-ghost:hover {
+    border-bottom-color: var(--gold);
+    color: var(--gold);
+  }
+
+  /* CBOM excerpt card */
+  .cbom-card {
+    background: linear-gradient(180deg, var(--ink-raised), var(--ink-card));
+    border: 1px solid var(--ink-edge);
+    border-radius: 14px;
+    padding: 1.5rem 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.65;
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .cbom-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.4;
+  }
+  .cbom-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.875rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed var(--ink-edge);
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .cbom-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.45rem 0;
+  }
+  .cbom-from {
+    color: var(--parchment-dim);
+    text-decoration: line-through;
+    text-decoration-color: var(--crimson);
+    text-decoration-thickness: 1px;
+  }
+  .cbom-to {
+    color: var(--sage);
+    font-weight: 500;
+  }
+  .cbom-arrow {
+    color: var(--gold);
+    font-size: 0.9rem;
+  }
+  .cbom-foot {
+    margin-top: 1rem;
+    padding-top: 0.875rem;
+    border-top: 1px dashed var(--ink-edge);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .cbom-foot .pill {
+    background: var(--sage-soft);
+    color: var(--sage);
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  /* Hero meta strip */
+  .hero-meta {
+    margin-top: clamp(4rem, 7vw, 6rem);
+    padding-top: 2rem;
+    border-top: 1px solid var(--ink-edge);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: clamp(1.5rem, 4vw, 3rem);
+  }
+  .meta-item .meta-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: 0.45rem;
+  }
+  .meta-item .meta-value {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 400;
+    color: var(--parchment);
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+
+  /* ============================================
+     DEADLINES SECTION
+     ============================================ */
+  .deadlines {
+    border-top: 1px solid var(--ink-edge);
+    border-bottom: 1px solid var(--ink-edge);
+    background: linear-gradient(180deg, transparent, rgba(22, 27, 40, 0.4), transparent);
+  }
+  .deadlines-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(3rem, 5vw, 4rem);
+  }
+  @media (min-width: 900px) {
+    .deadlines-grid { grid-template-columns: 1fr 1.4fr; }
+  }
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    margin-top: 1rem;
+    position: relative;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--sienna) 50%, var(--ink-edge) 100%);
+  }
+  .tl-item {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  .tl-dot {
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--ink-deep);
+    border: 2px solid var(--gold);
+    margin-top: 6px;
+    position: relative;
+    z-index: 1;
+  }
+  .tl-item.urgent .tl-dot { border-color: var(--sienna); background: var(--sienna); }
+  .tl-item.passed .tl-dot { border-color: var(--muted-deep); background: var(--ink-deep); }
+  .tl-date {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    margin-bottom: 0.35rem;
+  }
+  .tl-item.urgent .tl-date { color: var(--sienna); }
+  .tl-item.passed .tl-date { color: var(--muted); }
+  .tl-title {
+    font-family: var(--font-display);
+    font-size: 1.18rem;
+    line-height: 1.3;
+    font-weight: 400;
+    color: var(--parchment);
+    margin-bottom: 0.35rem;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+  .tl-desc {
+    font-size: 0.94rem;
+    color: var(--parchment-dim);
+    line-height: 1.55;
+  }
+
+  /* ============================================
+     PRODUCT / DELIVERABLES SECTION
+     ============================================ */
+  .deliverable {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    padding-block: clamp(3rem, 6vw, 5rem);
+    align-items: center;
+    border-top: 1px dashed var(--ink-edge);
+  }
+  .deliverable:first-of-type { border-top: 0; padding-top: 0; }
+  @media (min-width: 900px) {
+    .deliverable { grid-template-columns: 1fr 1.1fr; }
+    .deliverable.reverse > div:first-child { order: 2; }
+  }
+  .deliverable-number {
+    font-family: var(--font-display);
+    font-size: 4.5rem;
+    line-height: 1;
+    color: var(--gold);
+    font-weight: 280;
+    font-style: italic;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.25rem;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .deliverable h3 {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3vw, 2.25rem);
+    font-weight: 380;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+    font-variation-settings: "opsz" 60, "SOFT" 40;
+    color: var(--parchment);
+  }
+  .deliverable p { margin-bottom: 1rem; }
+  .feature-list {
+    margin-top: 1.25rem;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .feature-list li {
+    display: flex;
+    gap: 0.875rem;
+    font-size: 0.95rem;
+    color: var(--parchment-dim);
+    line-height: 1.5;
+  }
+  .feature-list li::before {
+    content: '';
+    flex-shrink: 0;
+    margin-top: 0.55rem;
+    width: 6px;
+    height: 6px;
+    background: var(--gold);
+    border-radius: 50%;
+  }
+
+  /* Visual cards for each deliverable */
+  .visual-card {
+    background: linear-gradient(180deg, var(--ink-raised), var(--ink-card));
+    border: 1px solid var(--ink-edge);
+    border-radius: 14px;
+    padding: 1.75rem;
+    box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+    min-height: 360px;
+  }
+  .visual-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top right, var(--gold-soft), transparent 60%);
+    pointer-events: none;
+  }
+  .vc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--ink-edge);
+  }
+  .vc-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .vc-dot {
+    width: 8px; height: 8px;
+    background: var(--sage);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px var(--sage-soft);
+  }
+
+  /* CBOM inventory list */
+  .inv-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px dashed var(--ink-edge);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    align-items: center;
+  }
+  .inv-row:last-child { border-bottom: 0; }
+  .inv-icon {
+    width: 18px; height: 18px;
+    flex-shrink: 0;
+  }
+  .inv-row .label { color: var(--parchment); }
+  .inv-row .status-pill {
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pill-warn { background: var(--sienna-soft); color: var(--sienna); }
+  .pill-ok { background: var(--sage-soft); color: var(--sage); }
+  .pill-roadmap { background: var(--gold-soft); color: var(--gold); }
+
+  /* Readiness gauge */
+  .gauge-wrap {
+    display: grid;
+    place-items: center;
+    padding: 1rem 0 1.5rem;
+  }
+  .gauge {
+    width: 180px;
+    height: 90px;
+    position: relative;
+  }
+  .gauge-label {
+    text-align: center;
+    margin-top: 1rem;
+  }
+  .gauge-value {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    line-height: 1;
+    color: var(--gold);
+    font-weight: 350;
+    letter-spacing: -0.03em;
+    font-variation-settings: "opsz" 100, "SOFT" 80;
+  }
+  .gauge-suffix {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 0.4rem;
+  }
+  .report-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px dashed var(--ink-edge);
+  }
+  .rm-item .rm-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.3rem;
+  }
+  .rm-item .rm-value {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--parchment);
+    font-variation-settings: "opsz" 24, "SOFT" 50;
+  }
+
+  /* Vendor matrix */
+  .vendor-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    align-items: center;
+    border-bottom: 1px dashed var(--ink-edge);
+    font-size: 0.88rem;
+  }
+  .vendor-row:last-child { border-bottom: 0; }
+  .vendor-name {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: var(--font-mono);
+    color: var(--parchment);
+  }
+  .vendor-mark {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: var(--ink-edge);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--gold);
+    font-variation-settings: "opsz" 18;
+  }
+
+  /* ============================================
+     HOW IT WORKS
+     ============================================ */
+  .how-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    margin-top: 3rem;
+  }
+  @media (min-width: 760px) {
+    .how-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1080px) {
+    .how-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  .how-card {
+    background: linear-gradient(180deg, rgba(28, 34, 48, 0.6), rgba(22, 27, 40, 0.4));
+    border: 1px solid var(--ink-edge);
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem 1.5rem;
+    position: relative;
+    transition: all 0.4s var(--ease);
+  }
+  .how-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px -20px rgba(216, 168, 95, 0.2);
+  }
+  .how-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--gold);
+    letter-spacing: 0.16em;
+    margin-bottom: 1rem;
+  }
+  .how-card h4 {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1.15;
+    font-weight: 400;
+    color: var(--parchment);
+    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+  .how-card p {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--parchment-dim);
+  }
+
+  /* ============================================
+     POSITIONING / WHY US
+     ============================================ */
+  .positioning {
+    background: linear-gradient(180deg, transparent 0%, rgba(22, 27, 40, 0.3) 50%, transparent 100%);
+    border-top: 1px solid var(--ink-edge);
+    border-bottom: 1px solid var(--ink-edge);
+  }
+  .pos-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+  @media (min-width: 900px) {
+    .pos-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .pos-block h4 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--parchment);
+    margin-bottom: 0.875rem;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 48, "SOFT" 50;
+  }
+  .pull-quote {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+    line-height: 1.3;
+    color: var(--gold);
+    margin: 2.5rem 0;
+    padding-left: 1.5rem;
+    border-left: 2px solid var(--gold);
+    font-weight: 320;
+    font-variation-settings: "opsz" 60, "SOFT" 100;
+    max-width: 30ch;
+  }
+
+  /* ============================================
+     STANDARDS / TRUST STRIP
+     ============================================ */
+  .standards {
+    padding-block: 4rem;
+    border-top: 1px dashed var(--ink-edge);
+  }
+  .std-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: clamp(1.5rem, 4vw, 2.75rem);
+    margin-top: 2rem;
+  }
+  .std-item {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--parchment-dim);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .std-item::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--sage);
+    border-radius: 50%;
+  }
+
+  /* ============================================
+     PRICING
+     ============================================ */
+  .price-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+  @media (min-width: 800px) {
+    .price-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .price-card {
+    background: linear-gradient(180deg, rgba(28, 34, 48, 0.7), rgba(22, 27, 40, 0.5));
+    border: 1px solid var(--ink-edge);
+    border-radius: 14px;
+    padding: 2.25rem 2rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.4s var(--ease);
+  }
+  .price-card.featured {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, rgba(216, 168, 95, 0.06), rgba(22, 27, 40, 0.5));
+  }
+  .price-card.featured::before {
+    content: 'Most Popular';
+    position: absolute;
+    top: -0.7rem;
+    left: 2rem;
+    background: var(--gold);
+    color: var(--ink-deep);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+  }
+  .price-tier {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    margin-bottom: 0.75rem;
+  }
+  .price-name {
+    font-family: var(--font-display);
+    font-size: 1.85rem;
+    font-weight: 400;
+    color: var(--parchment);
+    letter-spacing: -0.015em;
+    margin-bottom: 0.5rem;
+    font-variation-settings: "opsz" 48, "SOFT" 50;
+  }
+  .price-blurb {
+    font-size: 0.95rem;
+    color: var(--parchment-dim);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+  .price-amt {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    color: var(--parchment);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    font-weight: 350;
+    margin-bottom: 0.35rem;
+    font-variation-settings: "opsz" 100, "SOFT" 50;
+  }
+  .price-amt span { font-size: 1rem; color: var(--muted); letter-spacing: 0; }
+  .price-cycle {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 1.75rem;
+  }
+  .price-features {
+    list-style: none;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 2rem;
+  }
+  .price-features li {
+    display: flex;
+    gap: 0.7rem;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--parchment-dim);
+  }
+  .price-features svg {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    margin-top: 0.18rem;
+    color: var(--gold);
+  }
+  .price-cta {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.85rem 1.25rem;
+    border-radius: 999px;
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    font-weight: 500;
+    transition: all 0.3s var(--ease);
+    width: 100%;
+    text-align: center;
+  }
+  .price-cta.solid {
+    background: var(--gold);
+    color: var(--ink-deep);
+  }
+  .price-cta.solid:hover { background: var(--gold-bright); }
+  .price-cta.outline {
+    background: transparent;
+    color: var(--parchment);
+    border: 1px solid var(--ink-edge);
+  }
+  .price-cta.outline:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ============================================
+     CONTACT
+     ============================================ */
+  .contact {
+    border-top: 1px solid var(--ink-edge);
+    position: relative;
+    overflow: hidden;
+  }
+  .contact::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, var(--gold-soft), transparent 60%);
+    transform: translate(-50%, -40%);
+    pointer-events: none;
+  }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(3rem, 6vw, 5rem);
+    align-items: start;
+    position: relative;
+  }
+  @media (min-width: 900px) {
+    .contact-grid { grid-template-columns: 1fr 1.2fr; }
+  }
+  .contact-info p { margin-top: 1rem; }
+  .contact-details {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px dashed var(--ink-edge);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .ci-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.3rem;
+  }
+  .ci-value {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--parchment);
+    font-variation-settings: "opsz" 24, "SOFT" 50;
+  }
+  .ci-value a { transition: color 0.25s var(--ease); }
+  .ci-value a:hover { color: var(--gold); }
+
+  /* form */
+  form.contact-form {
+    background: linear-gradient(180deg, rgba(28, 34, 48, 0.5), rgba(22, 27, 40, 0.3));
+    border: 1px solid var(--ink-edge);
+    border-radius: 16px;
+    padding: clamp(1.75rem, 3vw, 2.5rem);
+    backdrop-filter: blur(8px);
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (min-width: 600px) {
+    .form-row.two { grid-template-columns: 1fr 1fr; }
+  }
+  .field { display: flex; flex-direction: column; gap: 0.45rem; }
+  .field label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  .field input,
+  .field select,
+  .field textarea {
+    background: var(--ink-deep);
+    border: 1px solid var(--ink-edge);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--parchment);
+    transition: all 0.25s var(--ease);
+    outline: none;
+    font-weight: 400;
+  }
+  .field input::placeholder,
+  .field textarea::placeholder { color: var(--muted-deep); }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--gold);
+    background: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 130px; line-height: 1.55; }
+  .field select { cursor: pointer; }
+
+  .form-submit {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--gold);
+    color: var(--ink-deep);
+    padding: 1rem 1.6rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s var(--ease);
+    width: 100%;
+  }
+  .form-submit:hover {
+    background: var(--gold-bright);
+    box-shadow: 0 12px 30px -10px rgba(216, 168, 95, 0.5);
+  }
+  .form-submit:disabled { opacity: 0.6; cursor: wait; }
+  .form-note {
+    margin-top: 1rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .form-success {
+    display: none;
+    margin-top: 1.25rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--sage);
+    background: var(--sage-soft);
+    border-radius: 8px;
+    color: var(--sage);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .form-success.show { display: block; }
+
+  /* ============================================
+     FOOTER
+     ============================================ */
+  footer {
+    border-top: 1px solid var(--ink-edge);
+    padding-block: 3.5rem 2rem;
+    background: var(--ink);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 760px) {
+    .footer-grid { grid-template-columns: 1.5fr 1fr 1fr 1fr; }
+  }
+  .footer-brand .logo { margin-bottom: 1rem; }
+  .footer-brand p {
+    font-size: 0.92rem;
+    color: var(--muted);
+    max-width: 36ch;
+  }
+  .footer-col h5 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--gold);
+    margin-bottom: 1.125rem;
+  }
+  .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+  .footer-col a {
+    font-size: 0.92rem;
+    color: var(--parchment-dim);
+    transition: color 0.25s var(--ease);
+  }
+  .footer-col a:hover { color: var(--gold); }
+  .footer-base {
+    padding-top: 2rem;
+    border-top: 1px solid var(--ink-edge);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  /* ============================================
+     UTILITY / ANIMATION
+     ============================================ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* selection */
+  ::selection { background: var(--gold); color: var(--ink-deep); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: var(--ink-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--ink-edge); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted-deep); }
+</style>
+</head>
+<body>
+
+<!-- Ambient lattice background -->
+<div class="lattice-bg" aria-hidden="true"></div>
+
+<!-- ============================================
+     NAV
+     ============================================ -->
+<nav class="topnav">
+  <div class="container nav-inner">
+    <a href="#" class="logo" aria-label="CryptiQ home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 26 26" fill="none">
+          <!-- CryptiQ mark: a "Q" formed from a ring of lattice nodes, with the
+               tail node breaking the ring — lattice cryptography resolving into the letter -->
+          <circle cx="13" cy="3.5" r="1.5" fill="#D8A85F"/>
+          <circle cx="19.7" cy="6.3" r="1.5" fill="#D8A85F"/>
+          <circle cx="22.5" cy="13" r="1.5" fill="#D8A85F"/>
+          <circle cx="19.7" cy="19.7" r="1.5" fill="#D8A85F"/>
+          <circle cx="6.3" cy="6.3" r="1.5" fill="#D8A85F"/>
+          <circle cx="3.5" cy="13" r="1.5" fill="#D8A85F"/>
+          <circle cx="6.3" cy="19.7" r="1.5" fill="#D8A85F"/>
+          <circle cx="13" cy="22.5" r="1.5" fill="#D8A85F"/>
+          <!-- the Q tail: a node breaking out at lower-right -->
+          <circle cx="21" cy="21" r="2" fill="#ECC07A"/>
+          <!-- faint ring connecting the nodes -->
+          <circle cx="13" cy="13" r="9.5" stroke="#D8A85F" stroke-width="0.6" opacity="0.28"/>
+        </svg>
+      </span>
+      <span>CryptiQ</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#product">Product</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#why">Why CryptiQ</a></li>
+    </ul>
+    <a href="#contact" class="nav-cta">Request a demo</a>
+  </div>
+</nav>
+
+<!-- ============================================
+     HERO
+     ============================================ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Post-Quantum Readiness · For Mid-Market SaaS</span>
+        <h1>The cryptography running your business <em>expires</em> before you do.</h1>
+        <p class="hero-lede">CryptiQ gives your team a self-serve cryptographic inventory, a customer-facing readiness report, and live tracking of every vendor in your stack — so your next enterprise security review goes exactly as planned.</p>
+
+        <div class="hero-cta-row">
+          <a href="#contact" class="btn-primary">
+            Request a demo
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+          <a href="#product" class="btn-ghost">See the product</a>
+        </div>
+      </div>
+
+      <!-- CBOM transition preview -->
+      <div class="cbom-card" aria-label="Sample CBOM excerpt">
+        <div class="cbom-head">
+          <span>cbom-excerpt.json</span>
+          <span>cyclonedx v1.6</span>
+        </div>
+        <div class="cbom-row">
+          <span class="cbom-from">RSA-2048 / sha256WithRSA</span>
+          <span class="cbom-arrow">→</span>
+          <span class="cbom-to">ML-DSA-65</span>
+        </div>
+        <div class="cbom-row">
+          <span class="cbom-from">ECDH P-256</span>
+          <span class="cbom-arrow">→</span>
+          <span class="cbom-to">X25519MLKEM768</span>
+        </div>
+        <div class="cbom-row">
+          <span class="cbom-from">RSA-OAEP-2048</span>
+          <span class="cbom-arrow">→</span>
+          <span class="cbom-to">ML-KEM-768</span>
+        </div>
+        <div class="cbom-row">
+          <span class="cbom-from">ECDSA P-384</span>
+          <span class="cbom-arrow">→</span>
+          <span class="cbom-to">ML-DSA-87</span>
+        </div>
+        <div class="cbom-foot">
+          <span>47 assets scanned</span>
+          <span class="pill">PQ-ready: 14 / 47</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta strip -->
+    <div class="hero-meta">
+      <div class="meta-item">
+        <div class="meta-label">First scan</div>
+        <div class="meta-value">In one afternoon</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Deployment</div>
+        <div class="meta-value">OAuth · No agents</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">CBOM format</div>
+        <div class="meta-value">CycloneDX 1.6</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Standards</div>
+        <div class="meta-value">FIPS 203 · 204 · 205</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     DEADLINES
+     ============================================ -->
+<section class="deadlines" id="why-now">
+  <div class="container">
+    <div class="deadlines-grid">
+      <div>
+        <span class="eyebrow">The Calendar</span>
+        <h2 class="section-heading">The deadlines are not <em>theoretical</em>.</h2>
+        <p>Every quarter from here forward closes another door on RSA and elliptic-curve cryptography. Federal procurement, EU regulation, and customer security reviews are converging on the same expectation: a credible post-quantum migration plan, documented and current.</p>
+        <p style="margin-top: 1rem;">CryptiQ is built around this calendar.</p>
+      </div>
+
+      <div class="timeline">
+        <div class="tl-item urgent reveal">
+          <div class="tl-dot"></div>
+          <div>
+            <div class="tl-date">September 21, 2026</div>
+            <div class="tl-title">FIPS 140-2 certificates move to Historical</div>
+            <div class="tl-desc">Federal procurement requires FIPS 140-3 validated modules. Cascades down through every federal-adjacent buyer.</div>
+          </div>
+        </div>
+        <div class="tl-item urgent reveal">
+          <div class="tl-dot"></div>
+          <div>
+            <div class="tl-date">January 2027</div>
+            <div class="tl-title">CNSA 2.0 takes effect</div>
+            <div class="tl-desc">NSA requires quantum-safe algorithms for new National Security System acquisitions. Defense Industrial Base contractors face cascading procurement pressure across their SaaS stack.</div>
+          </div>
+        </div>
+        <div class="tl-item reveal">
+          <div class="tl-dot"></div>
+          <div>
+            <div class="tl-date">End of 2026</div>
+            <div class="tl-title">EU member states publish PQC strategies</div>
+            <div class="tl-desc">Under the coordinated EU roadmap, national cryptographic inventories and pilot migrations begin. CRA brings cryptographic transparency into product compliance.</div>
+          </div>
+        </div>
+        <div class="tl-item reveal">
+          <div class="tl-dot"></div>
+          <div>
+            <div class="tl-date">2030</div>
+            <div class="tl-title">RSA-2048 disallowed for federal systems</div>
+            <div class="tl-desc">NIST sunsets 112-bit-equivalent algorithms. EU critical infrastructure targets full PQC by 2030.</div>
+          </div>
+        </div>
+        <div class="tl-item reveal">
+          <div class="tl-dot"></div>
+          <div>
+            <div class="tl-date">2033 – 2035</div>
+            <div class="tl-title">Full migration deadlines arrive</div>
+            <div class="tl-desc">NSS, operating systems, custom applications, and cloud infrastructure expected to be fully migrated. "Harvest now, decrypt later" timelines collapse.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     PRODUCT / DELIVERABLES
+     ============================================ -->
+<section id="product">
+  <div class="container">
+    <span class="eyebrow">What CryptiQ Delivers</span>
+    <h2 class="section-heading">Three artifacts. <em>One afternoon</em> to your first.</h2>
+    <p style="max-width: 60ch; margin-top: 0.5rem;">Connect your code hosts, cloud accounts, certificate authority, and vendor list. Within a day you have everything you need to answer your customers' next post-quantum question with confidence.</p>
+
+    <!-- Deliverable 1: CBOM -->
+    <div class="deliverable">
+      <div class="reveal">
+        <div class="deliverable-number">i.</div>
+        <h3>A Cryptography Bill of Materials, generated automatically</h3>
+        <p>A complete inventory of every cryptographic primitive, key, certificate, and protocol across your code, your cloud, and your dependencies — in the CycloneDX 1.6 standard format, ready to ingest into your GRC platform.</p>
+        <ul class="feature-list">
+          <li>Static analysis across GitHub, GitLab, and Bitbucket — Python, Java, Go, JavaScript, .NET, and more</li>
+          <li>AWS, GCP, and Azure crypto surface: KMS keys, certificates, TLS configurations, secrets</li>
+          <li>Certificate authority integration via ACME and vendor APIs</li>
+          <li>Public-facing certificates discovered through Certificate Transparency logs</li>
+        </ul>
+      </div>
+      <div class="visual-card reveal">
+        <div class="vc-head">
+          <div class="vc-label">cbom · main inventory</div>
+          <div class="vc-dot"></div>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="10" rx="1.5" stroke="#D8A85F" stroke-width="1.3"/><path d="M6 6V4a4 4 0 018 0v2" stroke="#D8A85F" stroke-width="1.3"/></svg>
+          <span class="label">RSA-2048 · sha256WithRSA</span>
+          <span class="status-pill pill-warn">At risk</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" stroke="#D8A85F" stroke-width="1.3"/><circle cx="10" cy="10" r="2" fill="#D8A85F"/></svg>
+          <span class="label">ECDH P-256 · TLS handshake</span>
+          <span class="status-pill pill-warn">At risk</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#87A98B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="label">AES-256-GCM · data-at-rest</span>
+          <span class="status-pill pill-ok">PQ-safe</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14" stroke="#D8A85F" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span class="label">ML-KEM-768 · key exchange</span>
+          <span class="status-pill pill-ok">PQ-safe</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="#D8A85F" stroke-width="1.3"/><path d="M3 8h14M8 3v14" stroke="#D8A85F" stroke-width="0.6"/></svg>
+          <span class="label">ECDSA P-384 · signing</span>
+          <span class="status-pill pill-warn">At risk</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><path d="M4 6l6-3 6 3v8l-6 3-6-3z" stroke="#D8A85F" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          <span class="label">SHA-384 · MAC</span>
+          <span class="status-pill pill-ok">PQ-safe</span>
+        </div>
+        <div class="inv-row">
+          <svg class="inv-icon" viewBox="0 0 20 20" fill="none"><circle cx="6" cy="10" r="2" stroke="#D8A85F" stroke-width="1.3"/><circle cx="14" cy="10" r="2" stroke="#D8A85F" stroke-width="1.3"/><path d="M8 10h4" stroke="#D8A85F" stroke-width="1.3"/></svg>
+          <span class="label">DSA-1024 · legacy certificate</span>
+          <span class="status-pill pill-warn">At risk</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deliverable 2: Readiness Report -->
+    <div class="deliverable reverse">
+      <div class="reveal">
+        <div class="deliverable-number">ii.</div>
+        <h3>A readiness report your customers can actually read</h3>
+        <p>A branded, shareable artifact — the one you send when a prospect's security team asks "what's your post-quantum plan?" Generated as PDF, embeddable in your SafeBase or Whistic trust page, and aligned to the PKI Consortium's Post-Quantum Cryptography Maturity Model.</p>
+        <ul class="feature-list">
+          <li>Executive summary with maturity score, in language a procurement team understands</li>
+          <li>Per-system migration plans with timelines aligned to NIST and CNSA deadlines</li>
+          <li>Attestation language ready to paste into security questionnaires</li>
+          <li>Vendor dependency map showing where you're waiting on third parties</li>
+        </ul>
+      </div>
+      <div class="visual-card reveal">
+        <div class="vc-head">
+          <div class="vc-label">readiness · v2.4 · for share</div>
+          <div class="vc-dot"></div>
+        </div>
+        <div class="gauge-wrap">
+          <svg class="gauge" viewBox="0 0 180 100">
+            <!-- background arc -->
+            <path d="M 15 85 A 70 70 0 0 1 165 85" stroke="#2A3144" stroke-width="9" fill="none" stroke-linecap="round"/>
+            <!-- foreground arc, ~70% of half circle -->
+            <path d="M 15 85 A 70 70 0 0 1 142 30" stroke="#D8A85F" stroke-width="9" fill="none" stroke-linecap="round"/>
+            <!-- tick marks -->
+            <circle cx="15" cy="85" r="2.5" fill="#5C6071"/>
+            <circle cx="165" cy="85" r="2.5" fill="#5C6071"/>
+            <circle cx="90" cy="15" r="2.5" fill="#5C6071"/>
+          </svg>
+        </div>
+        <div class="gauge-label">
+          <div class="gauge-value">PQCMM&nbsp;3</div>
+          <div class="gauge-suffix">Defined · Migrating</div>
+        </div>
+        <div class="report-meta">
+          <div class="rm-item">
+            <div class="rm-label">Critical assets</div>
+            <div class="rm-value">94% mapped</div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-label">Vendor coverage</div>
+            <div class="rm-value">211 of 234</div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-label">First migration</div>
+            <div class="rm-value">Q1 · 2027</div>
+          </div>
+          <div class="rm-item">
+            <div class="rm-label">Hybrid in prod</div>
+            <div class="rm-value">3 services</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deliverable 3: Vendor tracking -->
+    <div class="deliverable">
+      <div class="reveal">
+        <div class="deliverable-number">iii.</div>
+        <h3>Continuous visibility into every vendor in your stack</h3>
+        <p>Most of your migration won't be your own code — it'll be waiting on Stripe, Auth0, MongoDB, and the 200 other vendors that quietly run your product. CryptiQ tracks each one continuously, with evidence, so you know exactly what's blocking your readiness and what's already done.</p>
+        <ul class="feature-list">
+          <li>Live status for hundreds of common SaaS, infrastructure, and security vendors</li>
+          <li>Evidence-backed: links to vendor documentation, RFC participation, support ticket trails</li>
+          <li>Generate pre-written vendor outreach emails directly from the dashboard</li>
+          <li>Subscribe to status changes — get notified the moment a critical vendor ships PQC support</li>
+        </ul>
+      </div>
+      <div class="visual-card reveal">
+        <div class="vc-head">
+          <div class="vc-label">vendor matrix · top dependencies</div>
+          <div class="vc-dot"></div>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">A</span>aws.amazon.com</div>
+          <span class="status-pill pill-ok">Ready · KMS</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">C</span>cloudflare.com</div>
+          <span class="status-pill pill-ok">Ready · TLS</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">G</span>cloud.google.com</div>
+          <span class="status-pill pill-ok">Ready · KMS</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">S</span>stripe.com</div>
+          <span class="status-pill pill-roadmap">Roadmap · 2027</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">O</span>okta.com</div>
+          <span class="status-pill pill-roadmap">Roadmap · 2026</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">M</span>mongodb.com</div>
+          <span class="status-pill pill-warn">No plan filed</span>
+        </div>
+        <div class="vendor-row">
+          <div class="vendor-name"><span class="vendor-mark">T</span>twilio.com</div>
+          <span class="status-pill pill-warn">No plan filed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     HOW IT WORKS
+     ============================================ -->
+<section id="how" style="border-top: 1px dashed var(--ink-edge);">
+  <div class="container">
+    <span class="eyebrow">How It Works</span>
+    <h2 class="section-heading">No agents. No professional services. <em>No sprawl.</em></h2>
+    <p>The fastest path from "we should look at PQC" to "here is our customer-facing report."</p>
+
+    <div class="how-grid">
+      <div class="how-card reveal">
+        <div class="how-num">01 · Connect</div>
+        <h4>Authorize, don't install</h4>
+        <p>OAuth into GitHub, AWS, GCP, Azure, your certificate authority, and your existing GRC platform. Read-only roles. No agents, no kernel modules, no production access.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">02 · Scan</div>
+        <h4>First CBOM in hours</h4>
+        <p>Static analysis runs across your code. Cloud crypto surface is enumerated. Certificate Transparency logs are crawled. Your initial CycloneDX 1.6 CBOM is ready before the end of the day.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">03 · Prioritize</div>
+        <h4>Risk-ranked backlog</h4>
+        <p>Every finding is scored by data sensitivity, lifetime, exposure, and difficulty. The dashboard sorts to what's actionable now. Export to Jira, Linear, or your ticketing system in one click.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">04 · Share</div>
+        <h4>Your customers see the answer</h4>
+        <p>Generate your branded readiness report as PDF, web link, or embedded directly into your SafeBase or Whistic trust page. When the security review email comes in, you reply with a URL.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     POSITIONING / WHY US
+     ============================================ -->
+<section id="why" class="positioning">
+  <div class="container">
+    <span class="eyebrow">Built for the segment the giants skip</span>
+    <h2 class="section-heading">SandboxAQ and IBM build for the Fortune 500. <em>We don't.</em></h2>
+
+    <div class="pos-grid" style="margin-top: 2.5rem;">
+      <div class="pos-block reveal">
+        <h4>Self-serve by design</h4>
+        <p>Enterprise PQC platforms ship with six-week professional services engagements. CryptiQ is OAuth in, CBOM out — built for a security team of two who do not have time for a kickoff call.</p>
+      </div>
+      <div class="pos-block reveal">
+        <h4>Priced for SaaS, not for governments</h4>
+        <p>Starting at a fraction of what enterprise vendors charge. You shouldn't need a six-figure budget to know whether you're going to fail your next security review.</p>
+      </div>
+      <div class="pos-block reveal">
+        <h4>The artifact is the product</h4>
+        <p>Other tools generate inventories your engineers will read. CryptiQ generates the document your customers will read. The CBOM is table stakes; the customer-facing report is what unblocks the deal.</p>
+      </div>
+      <div class="pos-block reveal">
+        <h4>Vendor data, compounding</h4>
+        <p>Our vendor readiness database gets richer with every customer. Within a year, no enterprise-focused incumbent will have a database this current for the SaaS stack you actually run.</p>
+      </div>
+    </div>
+
+    <div class="pull-quote">
+      "Pass your customers' PQC security review — without building a quantum-safe roadmap from scratch."
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     STANDARDS STRIP
+     ============================================ -->
+<section class="standards">
+  <div class="container">
+    <span class="eyebrow">Built on the standards your auditors recognize</span>
+    <div class="std-row">
+      <span class="std-item">NIST FIPS 203 · ML-KEM</span>
+      <span class="std-item">NIST FIPS 204 · ML-DSA</span>
+      <span class="std-item">NIST FIPS 205 · SLH-DSA</span>
+      <span class="std-item">CycloneDX 1.6 CBOM</span>
+      <span class="std-item">NIST IR 8547</span>
+      <span class="std-item">NSA CNSA 2.0</span>
+      <span class="std-item">PKI Consortium PQCMM</span>
+      <span class="std-item">IETF Hybrid TLS</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     CONTACT
+     ============================================ -->
+<section id="contact" class="contact">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-info">
+        <span class="eyebrow">Get In Touch</span>
+        <h2 class="section-heading">Let's see what's in <em>your</em> stack.</h2>
+        <p>The 30-minute version: we connect to one repository and one cloud account, generate a real CBOM, and walk you through what we found. No slideware. No pressure. If it isn't useful, you'll know inside the call.</p>
+
+        <div class="contact-details">
+          <div>
+            <div class="ci-label">Response time</div>
+            <div class="ci-value">Within one business day</div>
+          </div>
+          <div>
+            <div class="ci-label">The call</div>
+            <div class="ci-value">30 minutes · founder-led · no slideware</div>
+          </div>
+          <div>
+            <div class="ci-label">Your data</div>
+            <div class="ci-value">Used only to schedule — never shared</div>
+          </div>
+        </div>
+      </div>
+
+      <form class="contact-form" id="contactForm" novalidate>
+        <div class="form-row two">
+          <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" placeholder="Jordan Patel" required />
+          </div>
+          <div class="field">
+            <label for="email">Work email</label>
+            <input type="email" id="email" name="email" placeholder="you@yourcompany.com" required />
+          </div>
+        </div>
+        <div class="form-row two">
+          <div class="field">
+            <label for="company">Company</label>
+            <input type="text" id="company" name="company" placeholder="Your SaaS company" required />
+          </div>
+          <div class="field">
+            <label for="size">Team size</label>
+            <select id="size" name="size" required>
+              <option value="">Select</option>
+              <option>Under 50</option>
+              <option>50 – 200</option>
+              <option>200 – 500</option>
+              <option>500 – 1,000</option>
+              <option>1,000+</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="role">What's prompting this?</label>
+            <select id="role" name="role" required>
+              <option value="">Select</option>
+              <option>A specific customer is asking about PQC</option>
+              <option>Approaching a SOC 2 / ISO renewal</option>
+              <option>Federal or defense customer pressure</option>
+              <option>Internal security audit</option>
+              <option>Just exploring</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="message">Anything else? (optional)</label>
+            <textarea id="message" name="message" placeholder="Stacks, deadlines, specific questions — the more context, the more useful the call."></textarea>
+          </div>
+        </div>
+        <button type="submit" class="form-submit" id="submitBtn">
+          Request a demo
+          <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;">
+            <path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <p class="form-note">We'll only use your details to schedule the conversation. No mailing list, no drip campaigns.</p>
+        <div class="form-success" id="formSuccess">
+          Thanks — we'll be in touch within one business day. Check your inbox for a calendar link.
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     FOOTER
+     ============================================ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo">
+          <span class="logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 26 26" fill="none">
+              <circle cx="13" cy="3.5" r="1.5" fill="#D8A85F"/><circle cx="19.7" cy="6.3" r="1.5" fill="#D8A85F"/><circle cx="22.5" cy="13" r="1.5" fill="#D8A85F"/><circle cx="19.7" cy="19.7" r="1.5" fill="#D8A85F"/>
+              <circle cx="6.3" cy="6.3" r="1.5" fill="#D8A85F"/><circle cx="3.5" cy="13" r="1.5" fill="#D8A85F"/><circle cx="6.3" cy="19.7" r="1.5" fill="#D8A85F"/><circle cx="13" cy="22.5" r="1.5" fill="#D8A85F"/>
+              <circle cx="21" cy="21" r="2" fill="#ECC07A"/>
+              <circle cx="13" cy="13" r="9.5" stroke="#D8A85F" stroke-width="0.6" opacity="0.28"/>
+            </svg>
+          </span>
+          <span>CryptiQ</span>
+        </div>
+        <p>Post-quantum cryptography readiness for mid-market SaaS. Built on open standards, designed for the security review you don't have time to fail.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="#product">What we deliver</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#contact">Request a demo</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><a href="#">PQC readiness guide</a></li>
+          <li><a href="#">CycloneDX CBOM primer</a></li>
+          <li><a href="#">Regulatory timeline</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-base">
+      <span>© 2026 CryptiQ, Inc. All rights reserved.</span>
+      <span>Built for the post-quantum decade.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ============================================
+  // Scroll reveal
+  // ============================================
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ============================================
+  // Stagger reveals within a parent
+  // ============================================
+  document.querySelectorAll('.timeline').forEach(timeline => {
+    const items = timeline.querySelectorAll('.reveal');
+    items.forEach((item, i) => {
+      item.style.transitionDelay = `${i * 90}ms`;
+    });
+  });
+  document.querySelectorAll('.how-grid').forEach(grid => {
+    grid.querySelectorAll('.reveal').forEach((item, i) => {
+      item.style.transitionDelay = `${i * 90}ms`;
+    });
+  });
+  document.querySelectorAll('.pos-grid').forEach(grid => {
+    grid.querySelectorAll('.reveal').forEach((item, i) => {
+      item.style.transitionDelay = `${i * 100}ms`;
+    });
+  });
+
+  // ============================================
+  // Form handler — real submission via Web3Forms
+  // ============================================
+  //
+  // SETUP (2 minutes, free, no backend needed):
+  //   1. Go to https://web3forms.com and enter the email where you want
+  //      to receive demo requests. They'll email you an Access Key.
+  //   2. Paste that key into WEB3FORMS_KEY below.
+  //   3. Done — submissions arrive in your inbox. Nothing else to host.
+  //
+  // Prefer a different service? The form sends a standard POST with
+  // JSON, so Formspree, Resend, or your own /api/contact route work too —
+  // just change ENDPOINT and the body shape to match their docs.
+  // ============================================
+  const WEB3FORMS_KEY = 'YOUR_ACCESS_KEY_HERE';
+  const ENDPOINT = 'https://api.web3forms.com/submit';
+
+  const form = document.getElementById('contactForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const successBox = document.getElementById('formSuccess');
+
+  const resetBtnLabel = () => {
+    submitBtn.innerHTML = `Request a demo <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  };
+
+  const showError = (msg) => {
+    successBox.textContent = msg;
+    successBox.style.borderColor = 'var(--crimson)';
+    successBox.style.background = 'rgba(177, 75, 71, 0.12)';
+    successBox.style.color = '#E08A86';
+    successBox.classList.add('show');
+  };
+
+  const showSuccess = () => {
+    successBox.textContent = "Thanks — we'll be in touch within one business day to set up your CBOM walkthrough.";
+    successBox.style.borderColor = 'var(--sage)';
+    successBox.style.background = 'var(--sage-soft)';
+    successBox.style.color = 'var(--sage)';
+    successBox.classList.add('show');
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    successBox.classList.remove('show');
+
+    // Basic client-side validation
+    const required = ['name', 'email', 'company', 'size', 'role'];
+    for (const id of required) {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) {
+        el.focus();
+        showError('Please fill in all required fields before sending.');
+        return;
+      }
+    }
+    const email = document.getElementById('email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById('email').focus();
+      showError('That email address looks incomplete — mind double-checking it?');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    // Guard against an unconfigured key so testing locally is obvious
+    if (WEB3FORMS_KEY === 'bb361e71-a752-447d-bcd4-f00d64f8b989') {
+      await new Promise(r => setTimeout(r, 600));
+      showSuccess();
+      form.reset();
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Request sent ✓';
+      console.warn('[CryptiQ] Form is in preview mode. Add your Web3Forms access key to WEB3FORMS_KEY to receive real submissions.');
+      setTimeout(resetBtnLabel, 5000);
+      return;
+    }
+
+    const payload = {
+      access_key: WEB3FORMS_KEY,
+      subject: 'New CryptiQ demo request',
+      from_name: 'CryptiQ website',
+      name: document.getElementById('name').value.trim(),
+      email: email,
+      company: document.getElementById('company').value.trim(),
+      team_size: document.getElementById('size').value,
+      prompting: document.getElementById('role').value,
+      message: document.getElementById('message').value.trim(),
+    };
+
+    try {
+      const res = await fetch(ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showSuccess();
+        form.reset();
+        submitBtn.innerHTML = 'Request sent ✓';
+        setTimeout(resetBtnLabel, 5000);
+      } else {
+        showError("Something went wrong sending that. Please try again in a moment.");
+        resetBtnLabel();
+      }
+    } catch (err) {
+      showError("Couldn't reach the server — check your connection and try again.");
+      resetBtnLabel();
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
