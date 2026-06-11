@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CryptiQ — Post-Quantum Cryptography Readiness for SaaS</title>
-<meta name="description" content="CryptiQ gives mid-market SaaS companies a self-serve crypto inventory, a customer-facing PQC readiness report, and continuous vendor tracking — so you can answer 'what's your post-quantum plan?' in your next security review." />
+<title>CryptiQ — Post-quantum migration, delivered as a pull request</title>
+<meta name="description" content="CryptiQ discovers your quantum-vulnerable cryptography, proves your readiness to customers, and migrates what's safe to migrate — as pull requests your team reviews and merges." />
 
 <!-- Favicons -->
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -840,135 +840,6 @@
   }
 
   /* ============================================
-     PRICING
-     ============================================ */
-  .price-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    margin-top: 3rem;
-  }
-  @media (min-width: 800px) {
-    .price-grid { grid-template-columns: 1fr 1fr; }
-  }
-  .price-card {
-    background: linear-gradient(180deg, rgba(28, 34, 48, 0.7), rgba(22, 27, 40, 0.5));
-    border: 1px solid var(--ink-edge);
-    border-radius: 14px;
-    padding: 2.25rem 2rem;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    transition: all 0.4s var(--ease);
-  }
-  .price-card.featured {
-    border-color: var(--gold);
-    background: linear-gradient(180deg, rgba(216, 168, 95, 0.06), rgba(22, 27, 40, 0.5));
-  }
-  .price-card.featured::before {
-    content: 'Most Popular';
-    position: absolute;
-    top: -0.7rem;
-    left: 2rem;
-    background: var(--gold);
-    color: var(--ink-deep);
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    padding: 0.3rem 0.7rem;
-    border-radius: 999px;
-  }
-  .price-tier {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--gold);
-    margin-bottom: 0.75rem;
-  }
-  .price-name {
-    font-family: var(--font-display);
-    font-size: 1.85rem;
-    font-weight: 400;
-    color: var(--parchment);
-    letter-spacing: -0.015em;
-    margin-bottom: 0.5rem;
-    font-variation-settings: "opsz" 48, "SOFT" 50;
-  }
-  .price-blurb {
-    font-size: 0.95rem;
-    color: var(--parchment-dim);
-    margin-bottom: 1.5rem;
-    line-height: 1.5;
-  }
-  .price-amt {
-    font-family: var(--font-display);
-    font-size: 2.6rem;
-    color: var(--parchment);
-    line-height: 1;
-    letter-spacing: -0.025em;
-    font-weight: 350;
-    margin-bottom: 0.35rem;
-    font-variation-settings: "opsz" 100, "SOFT" 50;
-  }
-  .price-amt span { font-size: 1rem; color: var(--muted); letter-spacing: 0; }
-  .price-cycle {
-    font-family: var(--font-mono);
-    font-size: 0.74rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    margin-bottom: 1.75rem;
-  }
-  .price-features {
-    list-style: none;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    margin-bottom: 2rem;
-  }
-  .price-features li {
-    display: flex;
-    gap: 0.7rem;
-    font-size: 0.92rem;
-    line-height: 1.5;
-    color: var(--parchment-dim);
-  }
-  .price-features svg {
-    flex-shrink: 0;
-    width: 16px; height: 16px;
-    margin-top: 0.18rem;
-    color: var(--gold);
-  }
-  .price-cta {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0.85rem 1.25rem;
-    border-radius: 999px;
-    font-family: var(--font-body);
-    font-size: 0.92rem;
-    font-weight: 500;
-    transition: all 0.3s var(--ease);
-    width: 100%;
-    text-align: center;
-  }
-  .price-cta.solid {
-    background: var(--gold);
-    color: var(--ink-deep);
-  }
-  .price-cta.solid:hover { background: var(--gold-bright); }
-  .price-cta.outline {
-    background: transparent;
-    color: var(--parchment);
-    border: 1px solid var(--ink-edge);
-  }
-  .price-cta.outline:hover { border-color: var(--gold); color: var(--gold); }
-
-  /* ============================================
      CONTACT
      ============================================ */
   .contact {
@@ -1182,6 +1053,136 @@
   ::-webkit-scrollbar-track { background: var(--ink-deep); }
   ::-webkit-scrollbar-thumb { background: var(--ink-edge); border-radius: 999px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-deep); }
+
+  /* ============================================
+     PULL-REQUEST CARD (hero)
+     ============================================ */
+  .pr-card {
+    background: linear-gradient(180deg, var(--ink-raised), var(--ink-card));
+    border: 1px solid var(--ink-edge);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+  .pr-badge {
+    background: var(--gold-soft);
+    color: var(--gold);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.5rem 1.1rem;
+    border-bottom: 1px solid var(--ink-edge);
+  }
+  .pr-head { display: flex; gap: 0.75rem; padding: 1.1rem 1.25rem 0.9rem; }
+  .pr-icon {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 6px;
+    background: var(--sage-soft); color: var(--sage);
+    display: grid; place-items: center; font-size: 0.9rem;
+  }
+  .pr-title { font-family: var(--font-body); font-weight: 600; color: var(--parchment); font-size: 0.95rem; line-height: 1.3; margin-bottom: 0.35rem; }
+  .pr-meta { color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+  .pr-meta .chip {
+    display: inline-block; background: var(--ink-edge); color: var(--parchment-dim);
+    padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.35rem; font-size: 0.66rem;
+  }
+  .diff { border-top: 1px solid var(--ink-edge); border-bottom: 1px solid var(--ink-edge); background: rgba(0,0,0,0.18); }
+  .diff-file { padding: 0.5rem 1.25rem; color: var(--muted); border-bottom: 1px dashed var(--ink-edge); font-size: 0.74rem; }
+  .dl { display: flex; gap: 0.5rem; padding: 0.18rem 1.25rem; white-space: pre; overflow-x: auto; }
+  .dl .ln { color: var(--muted-deep); width: 1.6rem; flex-shrink: 0; text-align: right; user-select: none; }
+  .dl .sign { width: 0.8rem; flex-shrink: 0; }
+  .dl.ctx { color: var(--parchment-dim); }
+  .dl.del { background: var(--sienna-soft); color: var(--sienna); }
+  .dl.add { background: var(--sage-soft); color: var(--sage); }
+  .pr-checks { padding: 0.9rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .pr-checks .check { display: flex; gap: 0.6rem; align-items: center; color: var(--parchment-dim); font-size: 0.76rem; }
+  .pr-checks .check .dot { color: var(--sage); flex-shrink: 0; }
+  .pr-checks .check.pending .dot { color: var(--gold); }
+  .pr-checks .check.pending { color: var(--gold); }
+  .pr-actions { display: flex; align-items: center; gap: 0.85rem; padding: 0 1.25rem 1.2rem; }
+  .pr-actions .merge-btn {
+    background: var(--sage); color: var(--ink-deep); font-family: var(--font-body);
+    font-weight: 600; font-size: 0.8rem; padding: 0.5rem 0.9rem; border-radius: 7px; cursor: not-allowed;
+  }
+  .pr-actions span { color: var(--muted); font-size: 0.72rem; font-family: var(--font-body); }
+
+  /* ============================================
+     MIGRATION-ENGINE FEATURED DELIVERABLE
+     ============================================ */
+  .deliverable.featured-deliverable {
+    background: linear-gradient(180deg, rgba(216,168,95,0.06), transparent);
+    border: 1px solid var(--gold);
+    border-radius: 16px;
+    padding: clamp(2rem, 4vw, 3rem);
+    margin-top: clamp(2rem, 4vw, 3rem);
+  }
+  .deliverable.featured-deliverable .deliverable-number { color: var(--gold-bright); }
+  .pillar-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    background: var(--gold-soft);
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+
+  /* ============================================
+     AUTOMATION BOUNDARY TIERS
+     ============================================ */
+  .tiers {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    margin-top: 3rem;
+  }
+  @media (min-width: 860px) { .tiers { grid-template-columns: repeat(3, 1fr); } }
+  .tier {
+    background: linear-gradient(180deg, rgba(28,34,48,0.6), rgba(22,27,40,0.4));
+    border: 1px solid var(--ink-edge);
+    border-top-width: 3px;
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem;
+  }
+  .tier.green  { border-top-color: var(--sage); }
+  .tier.yellow { border-top-color: var(--gold); }
+  .tier.red    { border-top-color: var(--sienna); }
+  .tier .tier-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .tier.green  .tier-label { color: var(--sage); }
+  .tier.yellow .tier-label { color: var(--gold); }
+  .tier.red    .tier-label { color: var(--sienna); }
+  .tier h4 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: var(--parchment);
+    margin-bottom: 0.85rem;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+  .tier p { font-size: 0.92rem; line-height: 1.55; color: var(--parchment-dim); }
+  .tier p strong { color: var(--parchment); font-weight: 600; }
+  .tier-note {
+    margin-top: 2rem;
+    padding: 1.5rem 1.75rem;
+    background: var(--ink-raised);
+    border: 1px dashed var(--ink-edge);
+    border-radius: 12px;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--parchment-dim);
+  }
+  .tier-note strong { color: var(--gold); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1220,7 +1221,7 @@
       <li><a href="#how">How it works</a></li>
       <li><a href="#why">Why CryptiQ</a></li>
     </ul>
-    <a href="#contact" class="nav-cta">Request a demo</a>
+    <a href="#contact" class="nav-cta">Request early access</a>
   </div>
 </nav>
 
@@ -1231,50 +1232,48 @@
   <div class="container">
     <div class="hero-grid">
       <div>
-        <span class="eyebrow">Post-Quantum Readiness · For Mid-Market SaaS</span>
-        <h1>The cryptography running your business <em>expires</em> before you do.</h1>
-        <p class="hero-lede">CryptiQ gives your team a self-serve cryptographic inventory, a customer-facing readiness report, and live tracking of every vendor in your stack — so your next enterprise security review goes exactly as planned.</p>
+        <span class="eyebrow">Post-Quantum Migration · For Mid-Market SaaS</span>
+        <h1>Don't just <em>find</em> quantum-vulnerable crypto. Migrate it.</h1>
+        <p class="hero-lede">CryptiQ inventories every cryptographic asset across your code, cloud, and vendors — then opens pull requests that move the safe-to-automate parts to post-quantum algorithms. You review. You merge. You answer your customers' security reviews with proof, not promises.</p>
 
         <div class="hero-cta-row">
           <a href="#contact" class="btn-primary">
-            Request a demo
+            Request early access
             <svg viewBox="0 0 16 16" fill="none">
               <path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </a>
-          <a href="#product" class="btn-ghost">See the product</a>
+          <a href="#how" class="btn-ghost">See how it works</a>
         </div>
       </div>
 
-      <!-- CBOM transition preview -->
-      <div class="cbom-card" aria-label="Sample CBOM excerpt">
-        <div class="cbom-head">
-          <span>cbom-excerpt.json</span>
-          <span>cyclonedx v1.6</span>
+      <!-- Pull request opened by CryptiQ -->
+      <div class="pr-card" role="img" aria-label="Example pull request opened by CryptiQ migrating a load balancer to a post-quantum TLS policy">
+        <div class="pr-badge">Opened by CryptiQ</div>
+        <div class="pr-head">
+          <div class="pr-icon">⎇</div>
+          <div>
+            <div class="pr-title">Migrate ALB listener to hybrid post-quantum TLS policy</div>
+            <div class="pr-meta"><span class="chip">pqc-migration</span><span class="chip">green tier</span>cryptiq-bot wants to merge 1 commit into <span style="color: var(--parchment);">main</span></div>
+          </div>
         </div>
-        <div class="cbom-row">
-          <span class="cbom-from">RSA-2048 / sha256WithRSA</span>
-          <span class="cbom-arrow">→</span>
-          <span class="cbom-to">ML-DSA-65</span>
+        <div class="diff">
+          <div class="diff-file">infra/alb.tf</div>
+          <div class="dl ctx"><span class="ln">41</span><span class="sign"> </span>resource "aws_lb_listener" "https" {</div>
+          <div class="dl ctx"><span class="ln">42</span><span class="sign"> </span>  port       = 443</div>
+          <div class="dl del"><span class="ln">43</span><span class="sign">-</span>  ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"</div>
+          <div class="dl add"><span class="ln">43</span><span class="sign">+</span>  ssl_policy = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09"</div>
+          <div class="dl ctx"><span class="ln">44</span><span class="sign"> </span>  certificate_arn = aws_acm_certificate.main.arn</div>
         </div>
-        <div class="cbom-row">
-          <span class="cbom-from">ECDH P-256</span>
-          <span class="cbom-arrow">→</span>
-          <span class="cbom-to">X25519MLKEM768</span>
+        <div class="pr-checks">
+          <div class="check"><span class="dot">✓</span>terraform plan · no resources destroyed</div>
+          <div class="check"><span class="dot">✓</span>handshake verified · X25519MLKEM768 negotiated</div>
+          <div class="check"><span class="dot">✓</span>rollback diff generated</div>
+          <div class="check pending"><span class="dot">•</span>awaiting human review — CryptiQ never merges</div>
         </div>
-        <div class="cbom-row">
-          <span class="cbom-from">RSA-OAEP-2048</span>
-          <span class="cbom-arrow">→</span>
-          <span class="cbom-to">ML-KEM-768</span>
-        </div>
-        <div class="cbom-row">
-          <span class="cbom-from">ECDSA P-384</span>
-          <span class="cbom-arrow">→</span>
-          <span class="cbom-to">ML-DSA-87</span>
-        </div>
-        <div class="cbom-foot">
-          <span>47 assets scanned</span>
-          <span class="pill">PQ-ready: 14 / 47</span>
+        <div class="pr-actions">
+          <span class="merge-btn" aria-hidden="true">Merge pull request</span>
+          <span>That button is yours, not ours.</span>
         </div>
       </div>
     </div>
@@ -1365,9 +1364,9 @@
      ============================================ -->
 <section id="product">
   <div class="container">
-    <span class="eyebrow">What CryptiQ Delivers</span>
-    <h2 class="section-heading">Three artifacts. <em>One afternoon</em> to your first.</h2>
-    <p style="max-width: 60ch; margin-top: 0.5rem;">Connect your code hosts, cloud accounts, certificate authority, and vendor list. Within a day you have everything you need to answer your customers' next post-quantum question with confidence.</p>
+    <span class="eyebrow">The Product</span>
+    <h2 class="section-heading">Four deliverables. One platform. <em>Zero professional-services calls.</em></h2>
+    <p style="max-width: 60ch; margin-top: 0.5rem;">Connect your GitHub, your cloud accounts, your certificate authority, and your vendor list in an afternoon. Everything below is generated from that — no 90-field questionnaires.</p>
 
     <!-- Deliverable 1: CBOM -->
     <div class="deliverable">
@@ -1528,6 +1527,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Deliverable 4: The migration engine (featured) -->
+    <div class="deliverable featured-deliverable reveal">
+      <div>
+        <span class="pillar-tag">Migrate — the part nobody else does</span>
+        <div class="deliverable-number">iv.</div>
+        <h3>The migration engine</h3>
+        <p>When an asset becomes safe to migrate — a cloud region ships hybrid TLS, a vendor flips PQC on, a library cuts a post-quantum release — CryptiQ opens a pull request in your repository with the exact change, the test results, and a generated rollback. Your team reviews it like any other PR.</p>
+        <p style="margin-top: 1rem;">Migration stops being a project and becomes something that simply arrives, the moment it's ready. <strong style="color: var(--parchment);">CryptiQ proposes; only you merge.</strong></p>
+      </div>
+      <div>
+        <ul class="feature-list">
+          <li>Pull requests scoped to one change, with dry-run output and a rollback diff attached</li>
+          <li>A narrowly-scoped GitHub App and cloud role — able to propose a TLS policy change, incapable of deleting a key</li>
+          <li>CI runs against your own pipeline before the PR is ever marked ready</li>
+          <li>Every migration is auditable, reviewable, and reversible — CryptiQ never merges on its own</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1537,30 +1555,63 @@
 <section id="how" style="border-top: 1px dashed var(--ink-edge);">
   <div class="container">
     <span class="eyebrow">How It Works</span>
-    <h2 class="section-heading">No agents. No professional services. <em>No sprawl.</em></h2>
-    <p>The fastest path from "we should look at PQC" to "here is our customer-facing report."</p>
+    <h2 class="section-heading">An afternoon to connect. <em>A pull request to migrate.</em></h2>
+    <p>The fastest path from "we should look at PQC" to "our load balancer is already on hybrid post-quantum TLS."</p>
 
     <div class="how-grid">
       <div class="how-card reveal">
         <div class="how-num">01 · Connect</div>
-        <h4>Authorize, don't install</h4>
-        <p>OAuth into GitHub, AWS, GCP, Azure, your certificate authority, and your existing GRC platform. Read-only roles. No agents, no kernel modules, no production access.</p>
+        <h4>Connect, read-only</h4>
+        <p>OAuth into GitHub, AWS, GCP, Azure (read-only IAM roles), your CA, and your GRC tool. No agents on production servers. Your first CBOM and readiness report generate the same day.</p>
       </div>
       <div class="how-card reveal">
-        <div class="how-num">02 · Scan</div>
-        <h4>First CBOM in hours</h4>
-        <p>Static analysis runs across your code. Cloud crypto surface is enumerated. Certificate Transparency logs are crawled. Your initial CycloneDX 1.6 CBOM is ready before the end of the day.</p>
+        <div class="how-num">02 · Tier</div>
+        <h4>See everything, honestly tiered</h4>
+        <p>Every asset lands in a tier: <span class="mono" style="color: var(--sage);">green</span> (we can migrate it), <span class="mono" style="color: var(--gold);">yellow</span> (we draft it, you review carefully), or <span class="mono" style="color: var(--sienna);">red</span> (no one should automate this — here's the runbook).</p>
       </div>
       <div class="how-card reveal">
-        <div class="how-num">03 · Prioritize</div>
-        <h4>Risk-ranked backlog</h4>
-        <p>Every finding is scored by data sensitivity, lifetime, exposure, and difficulty. The dashboard sorts to what's actionable now. Export to Jira, Linear, or your ticketing system in one click.</p>
+        <div class="how-num">03 · Migrate</div>
+        <h4>Grant write scope, merge PRs</h4>
+        <p>When you're ready, grant a narrowly-scoped GitHub App and cloud role — one that can propose a TLS policy change but is <em>incapable</em> of deleting a key. Migrations arrive as PRs with dry-runs and rollbacks attached.</p>
       </div>
       <div class="how-card reveal">
-        <div class="how-num">04 · Share</div>
+        <div class="how-num">04 · Prove</div>
         <h4>Your customers see the answer</h4>
-        <p>Generate your branded readiness report as PDF, web link, or embedded directly into your SafeBase or Whistic trust page. When the security review email comes in, you reply with a URL.</p>
+        <p>Generate your branded readiness report as PDF, web link, or embedded in your SafeBase or Whistic trust page. When the security review email comes in, you reply with a URL — and real merged migrations behind it.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     AUTOMATION BOUNDARY
+     ============================================ -->
+<section id="boundary" style="border-top: 1px dashed var(--ink-edge);">
+  <div class="container">
+    <span class="eyebrow">The Automation Boundary</span>
+    <h2 class="section-heading">We're honest about what should <em>never</em> be automated.</h2>
+    <p>That honesty is why security teams trust the parts we do automate.</p>
+
+    <div class="tiers">
+      <div class="tier green reveal">
+        <div class="tier-label">Green · Automatable</div>
+        <h4>Config-level changes</h4>
+        <p>Cloud load-balancer TLS policies, certificate reissuance with PQ-capable CAs, managed-key settings, dependency bumps to post-quantum library releases. <strong>One click: CryptiQ opens the PR, runs your CI, and waits for your merge.</strong></p>
+      </div>
+      <div class="tier yellow reveal">
+        <div class="tier-label">Yellow · Prepared</div>
+        <h4>Drafted, human-reviewed</h4>
+        <p>First-party JWT signing changes, mTLS between services you control, TLS client upgrades in application code. <strong>CryptiQ generates the diff, a plain-language risk explanation, and a test plan</strong> — your engineer reviews carefully and merges.</p>
+      </div>
+      <div class="tier red reveal">
+        <div class="tier-label">Red · Manual only</div>
+        <h4>Where automation would be malpractice</h4>
+        <p>Homegrown cryptographic protocols, crypto embedded in stored data, HSM and root-key operations, lockstep upgrades with external partners. <strong>CryptiQ explains why, gives you the runbook, and never silently guesses.</strong></p>
+      </div>
+    </div>
+
+    <div class="tier-note reveal">
+      Roughly <strong>60–70% of a typical SaaS company's cryptographic surface is green or yellow</strong> — real, automatable work that would otherwise consume weeks of senior engineering time. The remaining red tier deserves human judgment, and we'll be the first to tell you so.
     </div>
   </div>
 </section>
@@ -1583,8 +1634,8 @@
         <p>Starting at a fraction of what enterprise vendors charge. You shouldn't need a six-figure budget to know whether you're going to fail your next security review.</p>
       </div>
       <div class="pos-block reveal">
-        <h4>The artifact is the product</h4>
-        <p>Other tools generate inventories your engineers will read. CryptiQ generates the document your customers will read. The CBOM is table stakes; the customer-facing report is what unblocks the deal.</p>
+        <h4>We don't stop at finding</h4>
+        <p>Other tools hand you an inventory and a backlog. CryptiQ opens the pull request. Discovery and reporting are table stakes; actually migrating the safe-to-automate parts — and being honest about the parts we won't — is what no one else in this segment does.</p>
       </div>
       <div class="pos-block reveal">
         <h4>Vendor data, compounding</h4>
@@ -1593,7 +1644,7 @@
     </div>
 
     <div class="pull-quote">
-      "Pass your customers' PQC security review — without building a quantum-safe roadmap from scratch."
+      "Migration stops being a project and becomes something that simply arrives — the moment it's ready."
     </div>
   </div>
 </section>
@@ -1625,17 +1676,17 @@
     <div class="contact-grid">
       <div class="contact-info">
         <span class="eyebrow">Get In Touch</span>
-        <h2 class="section-heading">Let's see what's in <em>your</em> stack.</h2>
-        <p>The 30-minute version: we connect to one repository and one cloud account, generate a real CBOM, and walk you through what we found. No slideware. No pressure. If it isn't useful, you'll know inside the call.</p>
+        <h2 class="section-heading">See your first migration PR <em>within a week.</em></h2>
+        <p>We're onboarding early-access design partners now — mid-market SaaS teams who want to walk into their next security review with answers. You get a live CBOM and readiness report from your real environment, your vendor stack scored against our PQC database, and one real migration delivered as a pull request, free.</p>
 
         <div class="contact-details">
           <div>
             <div class="ci-label">Response time</div>
-            <div class="ci-value">Within one business day</div>
+            <div class="ci-value">A human reply, usually within one business day</div>
           </div>
           <div>
-            <div class="ci-label">The call</div>
-            <div class="ci-value">30 minutes · founder-led · no slideware</div>
+            <div class="ci-label">What you get</div>
+            <div class="ci-value">A live CBOM and one real migration PR — free</div>
           </div>
           <div>
             <div class="ci-label">Your data</div>
@@ -1692,14 +1743,14 @@
           </div>
         </div>
         <button type="submit" class="form-submit" id="submitBtn">
-          Request a demo
+          Request early access
           <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;">
             <path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
-        <p class="form-note">We'll only use your details to schedule the conversation. No mailing list, no drip campaigns.</p>
+        <p class="form-note">We read every message. No newsletters, no drip campaigns — a human reply, usually within one business day.</p>
         <div class="form-success" id="formSuccess">
-          Thanks — we'll be in touch within one business day. Check your inbox for a calendar link.
+          Thanks — we'll be in touch within one business day to set up your CBOM walkthrough and first migration PR.
         </div>
       </form>
     </div>
@@ -1731,7 +1782,7 @@
         <ul>
           <li><a href="#product">What we deliver</a></li>
           <li><a href="#how">How it works</a></li>
-          <li><a href="#contact">Request a demo</a></li>
+          <li><a href="#contact">Request early access</a></li>
         </ul>
       </div>
       <div class="footer-col">
@@ -1816,7 +1867,7 @@
   const successBox = document.getElementById('formSuccess');
 
   const resetBtnLabel = () => {
-    submitBtn.innerHTML = `Request a demo <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    submitBtn.innerHTML = `Request early access <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   };
 
   const showError = (msg) => {
@@ -1860,7 +1911,7 @@
     submitBtn.textContent = 'Sending…';
 
     // Guard against an unconfigured key so testing locally is obvious
-    if (WEB3FORMS_KEY === 'bb361e71-a752-447d-bcd4-f00d64f8b989') {
+    if (WEB3FORMS_KEY === 'YOUR_ACCESS_KEY_HERE') {
       await new Promise(r => setTimeout(r, 600));
       showSuccess();
       form.reset();
