@@ -1,8 +1,9 @@
-from scan_tls import scan_domain, convert_to_cbom
+from tls_scanner.scan_tls import scan_domain, convert_to_cbom
 # 1. imports
 from fastapi import FastAPI
 from pydantic import BaseModel
 from database import Session, ScanRecord
+from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys
 # also import scan_domain and convert_to_cbom from your scanner file
 
 # 2. create the app
@@ -109,3 +110,17 @@ def get_scans_by_domain(domain: str):
     scans = session.query(ScanRecord).filter(ScanRecord.domain == domain).all()
     session.close()
     return {"scans": [scan.to_dict() for scan in scans]}
+
+@app.get("/aws/certificates")
+def get_aws_certificates():
+    # call scan_acm_certificates()
+    results = scan_acm_certificates()
+    # return the results
+    return {"results": results}
+
+@app.get("/aws/keys")  
+def get_aws_keys():
+    # call scan_kms_keys()
+    results = scan_kms_keys()
+    # return the results
+    return {"results": results}
