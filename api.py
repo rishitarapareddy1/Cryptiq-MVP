@@ -3,11 +3,12 @@ from tls_scanner.scan_tls import scan_domain, convert_to_cbom
 from fastapi import FastAPI
 from pydantic import BaseModel
 from database import Session, ScanRecord
-from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys
+from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys, convert_aws_to_cbom
 
 from ssh_scanner.scan_ssh import scan_ssh, scan_ssh_bulk
 from ssh_scanner.ssh_risk import assess_risk_from_scan
 from ssh_scanner.ssh_database import save_scan, get_scan_history, get_latest_scan, get_inventory_summary, get_db
+
 
 # also import scan_domain and convert_to_cbom from your scanner file
 
@@ -130,6 +131,13 @@ def get_aws_keys():
     # return the results
     return {"results": results}
 
+@app.get("/aws/cbom")
+def get_aws_cbom():
+    cert_results = scan_acm_certificates()
+    kms_results = scan_kms_keys()
+    cbom = convert_aws_to_cbom(cert_results, kms_results)
+    return cbom
+
 class SSHScanRequest(BaseModel):
     host: str
     port: int = 22
@@ -210,3 +218,13 @@ def get_ssh_scans_by_host(host: str):
 def get_ssh_inventory():
     db = next(get_db())
     return get_inventory_summary(db)
+
+@app.get("/ssh/cbom/{host}")
+def get_ssh_cbom(host: str):
+    from ssh_scanner.ssh_cbom import generate_ssh_cbom
+    from ssh_scanner.scan_ssh import scan_ssh
+    from ssh_scanner.ssh_risk import assess_risk_from_scan
+    result = scan_ssh(host)
+    risk = assess_risk_from_scan(result)
+    cbom = generate_ssh_cbom(result, risk)
+    return cbom
