@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptiq — TLS Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0d11; --surface:#13161d; --surface2:#181b24;
+  --border:#1f2330; --border-hi:#2e3448;
+  --text:#e2e4ee; --muted:#6b7194;
+  --accent:#4f8fff; --accent-dim:#1a2f55;
+  --critical:#ff4d4d; --high:#ff8c42; --medium:#f5c842; --low:#3ecf8e; --hybrid:#a78bfa;
+  --mono:'IBM Plex Mono',monospace; --sans:'Inter',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:52px 1fr;min-height:100vh;}
+
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.topbar-logo{font-family:var(--mono);font-size:15px;font-weight:500;}
+.topbar-logo span{color:var(--accent);}
+.topbar-badge{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:2px 6px;}
+.topbar-spacer{flex:1;}
+.topbar-link{font-size:12px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:6px;transition:color .15s,background .15s;}
+.topbar-link:hover{color:var(--text);background:var(--border);}
+.back-link{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:6px;border:1px solid var(--border);}
+.back-link:hover{color:var(--text);border-color:var(--border-hi);}
+
+.sidebar{border-right:1px solid var(--border);padding:20px 0;background:var(--surface);position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;}
+.nav-section{padding:0 12px 4px;font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:16px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--muted);transition:color .12s,background .12s;border-left:2px solid transparent;user-select:none;}
+.nav-item:hover{color:var(--text);background:rgba(79,143,255,.06);}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);border-left-color:var(--accent);}
+.nav-item svg{flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+
+.main{padding:32px 36px;overflow-y:auto;max-height:calc(100vh - 52px);}
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:28px;}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+.page-sub{color:var(--muted);font-size:13px;}
+
+.scan-form{display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap;align-items:flex-end;}
+.input-group{display:flex;flex-direction:column;gap:5px;}
+.input-group label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+input[type=text],input[type=number],textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 13px;outline:none;transition:border-color .15s;}
+input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:var(--accent);}
+input[type=text]{width:300px;}
+textarea{width:100%;min-height:90px;resize:vertical;}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s,transform .1s;font-family:var(--sans);}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{opacity:.88;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--border-hi);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.stat-value{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
+
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;}
+.badge-critical{background:rgba(255,77,77,.15);color:var(--critical);}
+.badge-high{background:rgba(255,140,66,.15);color:var(--high);}
+.badge-medium{background:rgba(245,200,66,.15);color:var(--medium);}
+.badge-low,.badge-Low{background:rgba(62,207,142,.15);color:var(--low);}
+.badge-unknown{background:rgba(107,113,148,.15);color:var(--muted);}
+.badge-vulnerable{background:rgba(255,77,77,.15);color:var(--critical);}
+.badge-hybrid_pqc{background:rgba(167,139,250,.15);color:var(--hybrid);}
+
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:16px;transition:border-color .15s;}
+.result-card:hover{border-color:var(--border-hi);}
+.result-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.result-domain{font-family:var(--mono);font-size:16px;font-weight:500;flex:1;}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:12px;}
+.result-field-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.result-field-value{font-family:var(--mono);font-size:13px;color:var(--text);}
+
+.ct-section{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+.ct-title{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.ct-row{font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;}
+.ct-row:last-child{border-bottom:none;}
+.ct-field{color:var(--text);}
+
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.data-table td{font-family:var(--mono);font-size:12px;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.data-table tr:hover td{background:rgba(255,255,255,.02);}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.4;}
+.empty-title{font-size:15px;color:var(--text);margin-bottom:6px;}
+
+#toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);z-index:999;max-width:320px;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.error{border-color:var(--critical);color:var(--critical);}
+#toast.success{border-color:var(--low);}
+
+.cbom-pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;font-family:var(--mono);font-size:11px;line-height:1.7;overflow:auto;max-height:600px;color:#a8c8ff;white-space:pre;}
+.divider{border:none;border-top:1px solid var(--border);margin:24px 0;}
+
+@media(max-width:720px){.shell{grid-template-columns:1fr;}.sidebar{display:none;}.main{padding:20px 16px;}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header class="topbar">
+  <div class="topbar-logo">cryptiq<span>.</span>tls</div>
+  <div class="topbar-badge">v1.0</div>
+  <div class="topbar-spacer"></div>
+  <a href="/" class="back-link">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Home
+  </a>
+  <a href="/docs" class="topbar-link" target="_blank">API docs ↗</a>
+</header>
+
+<nav class="sidebar">
+  <div class="nav-section">Scanning</div>
+  <div class="nav-item active" data-page="scan" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Scan domain
+  </div>
+  <div class="nav-item" data-page="bulk" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Bulk scan
+  </div>
+  <div class="nav-section">AWS</div>
+  <div class="nav-item" data-page="aws-certs" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    ACM Certificates
+  </div>
+  <div class="nav-item" data-page="aws-keys" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+    KMS Keys
+  </div>
+  <div class="nav-section">History</div>
+  <div class="nav-item" data-page="history" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Scan history
+  </div>
+  <div class="nav-item" data-page="cbom" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    CBOM export
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- SCAN -->
+<div id="page-scan" class="page active">
+  <div class="page-header"><div class="page-title">Scan a domain</div><div class="page-sub">Extract TLS certificate details, algorithm, key exchange, and PQC readiness for any HTTPS domain.</div></div>
+  <div class="scan-form">
+    <div class="input-group"><label>Domain</label><input type="text" id="scan-domain" placeholder="google.com"></div>
+    <button class="btn btn-primary" id="scan-btn" onclick="doScan()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Scan
+    </button>
+  </div>
+  <div id="scan-result"></div>
+</div>
+
+<!-- BULK -->
+<div id="page-bulk" class="page">
+  <div class="page-header"><div class="page-title">Bulk scan</div><div class="page-sub">Scan multiple domains at once. One per line.</div></div>
+  <div class="input-group" style="margin-bottom:10px;"><label>Domains</label><textarea id="bulk-domains" placeholder="google.com&#10;github.com&#10;stripe.com"></textarea></div>
+  <div style="margin-bottom:28px;">
+    <button class="btn btn-primary" id="bulk-btn" onclick="doBulk()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Scan all
+    </button>
+  </div>
+  <div id="bulk-result"></div>
+</div>
+
+<!-- AWS CERTS -->
+<div id="page-aws-certs" class="page">
+  <div class="page-header" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;"><div class="page-title">ACM Certificates</div><div class="page-sub">AWS Certificate Manager — all certificates in us-east-1.</div></div>
+    <button class="btn btn-ghost" onclick="loadAWSCerts()">Refresh</button>
+  </div>
+  <div id="aws-certs-content"><div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div></div>
+</div>
+
+<!-- AWS KEYS -->
+<div id="page-aws-keys" class="page">
+  <div class="page-header" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;"><div class="page-title">KMS Keys</div><div class="page-sub">AWS Key Management Service — all keys and their algorithm classification.</div></div>
+    <button class="btn btn-ghost" onclick="loadAWSKeys()">Refresh</button>
+  </div>
+  <div id="aws-keys-content"><div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div></div>
+</div>
+
+<!-- HISTORY -->
+<div id="page-history" class="page">
+  <div class="page-header" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;"><div class="page-title">Scan history</div><div class="page-sub">All domain scans, most recent first.</div></div>
+    <button class="btn btn-ghost" onclick="loadHistory()">Refresh</button>
+  </div>
+  <div id="history-content"><div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div></div>
+</div>
+
+<!-- CBOM -->
+<div id="page-cbom" class="page">
+  <div class="page-header"><div class="page-title">CBOM export</div><div class="page-sub">Generate a CycloneDX 1.6 CBOM for scanned domains or AWS assets.</div></div>
+  <div style="display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="loadCBOM('aws')">AWS CBOM</button>
+    <button class="btn btn-ghost" id="cbom-dl" style="display:none;" onclick="downloadCBOM()">Download JSON</button>
+  </div>
+  <div id="cbom-content"></div>
+</div>
+
+</main>
+</div>
+<div id="toast"></div>
+
+<script>
+let _historyAll = [];
+let _cbomData = null;
+
+function nav(el) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  const page = el.dataset.page;
+  document.getElementById('page-'+page).classList.add('active');
+  if (page==='history') loadHistory();
+  if (page==='aws-certs') loadAWSCerts();
+  if (page==='aws-keys') loadAWSKeys();
+}
+
+let _tt;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+type;
+  clearTimeout(_tt); _tt=setTimeout(()=>el.className='',3400);
+}
+
+function riskBadge(l){
+  const lb={Critical:'CRITICAL',High:'HIGH',Medium:'MEDIUM',Low:'LOW',critical:'CRITICAL',high:'HIGH',medium:'MEDIUM',low:'LOW',unknown:'UNKNOWN'};
+  const cls=l?l.toLowerCase():'unknown';
+  return `<span class="badge badge-${cls}">${lb[l]||l}</span>`;
+}
+function pqcBadge(s){
+  const lb={vulnerable:'VULNERABLE',hybrid_pqc:'HYBRID PQC',unknown:'UNKNOWN'};
+  return `<span class="badge badge-${s}">${lb[s]||s}</span>`;
+}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderTLSResult(r) {
+  const ctRows = (r.ct_logs||[]).map(c=>`
+    <div class="ct-row">
+      <span>${c.common_name}</span>
+      <span class="ct-field">${c.issuer?.split(',')[0]||'—'}</span>
+      <span style="color:var(--muted);">${c.not_after?.slice(0,10)||'—'}</span>
+    </div>`).join('');
+
+  return `<div class="result-card">
+    <div class="result-header">
+      <div class="result-domain">${r.domain}</div>
+      ${riskBadge(r.risk_level)} ${pqcBadge(r.pqc_status)}
+    </div>
+    <div class="result-grid">
+      <div><div class="result-field-label">TLS version</div><div class="result-field-value">${r.tls_version||'—'}</div></div>
+      <div><div class="result-field-label">Algorithm</div><div class="result-field-value">${r.algorithm||'—'}</div></div>
+      <div><div class="result-field-label">Key size</div><div class="result-field-value">${r.keysize??'—'} bit</div></div>
+      <div><div class="result-field-label">Signature algo</div><div class="result-field-value">${r.signature_algorithm||'—'}</div></div>
+      <div><div class="result-field-label">Issuer</div><div class="result-field-value" style="font-size:11px;">${r.issuer||'—'}</div></div>
+      <div><div class="result-field-label">Expires</div><div class="result-field-value" style="font-size:11px;">${r.expiry||'—'}</div></div>
+      <div><div class="result-field-label">Days left</div><div class="result-field-value" style="color:${(r.days_until_expiry||0)<30?'var(--critical)':(r.days_until_expiry||0)<90?'var(--high)':'var(--low)'}">${r.days_until_expiry??'—'}</div></div>
+      <div><div class="result-field-label">Quantum vulnerable</div><div class="result-field-value" style="color:${r.quantum_vulnerable?'var(--critical)':'var(--low)'}">${r.quantum_vulnerable?'Yes':'No'}</div></div>
+    </div>
+    ${ctRows?`<div class="ct-section"><div class="ct-title">CT log entries (recent)</div>${ctRows}</div>`:''}
+  </div>`;
+}
+
+async function doScan() {
+  const domain = document.getElementById('scan-domain').value.trim();
+  if (!domain) { toast('Enter a domain','error'); return; }
+  const btn = document.getElementById('scan-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Scanning…';
+  document.getElementById('scan-result').innerHTML='';
+  try {
+    const res = await fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain})});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById('scan-result').innerHTML = renderTLSResult(data.result||data);
+    toast(`Scanned ${domain}`,'success');
+  } catch(e) {
+    document.getElementById('scan-result').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Scan failed</div><div class="empty-sub">${e.message}</div></div>`;
+    toast('Failed: '+e.message,'error');
+  } finally {
+    btn.disabled=false; btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Scan';
+  }
+}
+document.getElementById('scan-domain').addEventListener('keydown',e=>{ if(e.key==='Enter') doScan(); });
+
+async function doBulk() {
+  const domains = document.getElementById('bulk-domains').value.trim().split('\n').map(d=>d.trim()).filter(Boolean);
+  if (!domains.length) { toast('Enter at least one domain','error'); return; }
+  const btn = document.getElementById('bulk-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Scanning…';
+  document.getElementById('bulk-result').innerHTML='';
+  try {
+    const res = await fetch('/scan/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domains})});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const results = data.results||[];
+    const vuln = results.filter(r=>r.quantum_vulnerable).length;
+    const summary = `<div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Scanned</div><div class="stat-value">${results.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Vulnerable</div><div class="stat-value" style="color:var(--critical)">${vuln}</div></div>
+      <div class="stat-card"><div class="stat-label">High risk</div><div class="stat-value" style="color:var(--high)">${results.filter(r=>r.risk_level==='High'||r.risk_level==='high').length}</div></div>
+    </div><hr class="divider">`;
+    document.getElementById('bulk-result').innerHTML = summary + results.map(renderTLSResult).join('');
+    toast(`Scanned ${results.length} domains`,'success');
+  } catch(e) { toast('Failed: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Scan all'; }
+}
+
+async function loadAWSCerts() {
+  document.getElementById('aws-certs-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div>';
+  try {
+    const res = await fetch('/aws/certificates');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const certs = data.results||[];
+    if (!certs.length) { document.getElementById('aws-certs-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">No certificates found</div></div>'; return; }
+    const rows = certs.map(c=>`<tr>
+      <td style="color:var(--accent);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.domain_name}</td>
+      <td>${c.algorithm}</td>
+      <td>${c.key_size??'—'}</td>
+      <td>${c.status}</td>
+      <td style="font-size:11px;color:var(--muted);">${c.expiry?.slice(0,10)||'—'}</td>
+      <td>${c.issuer?.slice(0,30)||'—'}</td>
+      <td>${c.quantum_vulnerable?`<span style="color:var(--critical)">Yes</span>`:`<span style="color:var(--low)">No</span>`}</td>
+    </tr>`).join('');
+    document.getElementById('aws-certs-content').innerHTML=`<div style="overflow-x:auto;"><table class="data-table">
+      <thead><tr><th>Domain</th><th>Algorithm</th><th>Key size</th><th>Status</th><th>Expires</th><th>Issuer</th><th>Quantum vuln</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch(e) {
+    document.getElementById('aws-certs-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+async function loadAWSKeys() {
+  document.getElementById('aws-keys-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div>';
+  try {
+    const res = await fetch('/aws/keys');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const keys = data.results||[];
+    if (!keys.length) { document.getElementById('aws-keys-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">No KMS keys found</div></div>'; return; }
+    const rows = keys.map(k=>`<tr>
+      <td style="font-size:11px;color:var(--accent);">${k.key_id}</td>
+      <td>${k.algorithm}</td>
+      <td>${k.status}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.description||'—'}</td>
+      <td>${k.quantum_vulnerable?`<span style="color:var(--critical)">Yes</span>`:`<span style="color:var(--low)">No</span>`}</td>
+    </tr>`).join('');
+    document.getElementById('aws-keys-content').innerHTML=`<div style="overflow-x:auto;"><table class="data-table">
+      <thead><tr><th>Key ID</th><th>Algorithm</th><th>State</th><th>Description</th><th>Quantum vuln</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch(e) {
+    document.getElementById('aws-keys-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+async function loadHistory() {
+  document.getElementById('history-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Loading…</div></div>';
+  try {
+    const res = await fetch('/scans');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _historyAll = data.scans||[];
+    if (!_historyAll.length) { document.getElementById('history-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">No scans yet</div></div>'; return; }
+    const rows = _historyAll.map(s=>`<tr>
+      <td style="color:var(--accent)">${s.domain}</td>
+      <td>${s.tls_version||'—'}</td>
+      <td>${s.algorithm||'—'}</td>
+      <td>${s.quantum_vulnerable?`<span style="color:var(--critical)">Yes</span>`:`<span style="color:var(--low)">No</span>`}</td>
+      <td>${riskBadge(s.risk_level)}</td>
+      <td>${pqcBadge(s.pqc_status)}</td>
+      <td style="color:var(--muted);font-size:11px;">${s.scanned_at?new Date(s.scanned_at).toLocaleString():'—'}</td>
+    </tr>`).join('');
+    document.getElementById('history-content').innerHTML=`<div style="overflow-x:auto;"><table class="data-table">
+      <thead><tr><th>Domain</th><th>TLS</th><th>Algorithm</th><th>Vuln</th><th>Risk</th><th>PQC</th><th>Scanned</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch(e) {
+    document.getElementById('history-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+async function loadCBOM(type) {
+  document.getElementById('cbom-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Generating…</div></div>';
+  document.getElementById('cbom-dl').style.display='none'; _cbomData=null;
+  try {
+    const res = await fetch('/aws/cbom');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _cbomData = await res.json();
+    document.getElementById('cbom-content').innerHTML=`<pre class="cbom-pre">${escapeHtml(JSON.stringify(_cbomData,null,2))}</pre>`;
+    document.getElementById('cbom-dl').style.display='inline-flex';
+    toast('CBOM generated','success');
+  } catch(e) {
+    document.getElementById('cbom-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+    toast(e.message,'error');
+  }
+}
+function downloadCBOM() {
+  if (!_cbomData) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(_cbomData,null,2)],{type:'application/json'}));
+  a.download=`cbom_tls_${Date.now()}.json`; a.click();
+}
+</script>
+</body>
+</html>

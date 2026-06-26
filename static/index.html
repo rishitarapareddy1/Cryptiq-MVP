@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptiq — PQC Readiness Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0d11;
+  --surface: #13161d;
+  --surface2: #181b24;
+  --border: #1f2330;
+  --border-hi: #2e3448;
+  --text: #e2e4ee;
+  --muted: #6b7194;
+  --accent: #4f8fff;
+  --accent-dim: #1a2f55;
+  --critical: #ff4d4d;
+  --high: #ff8c42;
+  --low: #3ecf8e;
+  --hybrid: #a78bfa;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── topbar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 40px;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-logo { font-family: var(--mono); font-size: 16px; font-weight: 500; }
+.topbar-logo span { color: var(--accent); }
+.topbar-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.topbar-spacer { flex: 1; }
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--low);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* ── hero ── */
+.hero {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 96px 40px 72px;
+  text-align: center;
+}
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  margin-bottom: 20px;
+}
+.hero-title {
+  font-size: 48px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  margin-bottom: 20px;
+}
+.hero-title .dim { color: var(--muted); font-weight: 300; }
+.hero-sub {
+  font-size: 17px;
+  color: var(--muted);
+  max-width: 560px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+}
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 22px;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+.hero-cta:hover { opacity: .85; }
+
+/* ── stat strip ── */
+.stat-strip {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 72px;
+}
+.stat-item {
+  flex: 1;
+  max-width: 200px;
+  text-align: center;
+  padding: 28px 20px;
+  border-right: 1px solid var(--border);
+}
+.stat-item:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* ── tools section ── */
+.section { max-width: 960px; margin: 0 auto; padding: 0 40px 80px; }
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 24px;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.tool-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color .15s, transform .12s;
+  position: relative;
+  overflow: hidden;
+}
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--accent));
+  opacity: 0;
+  transition: opacity .2s;
+}
+.tool-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+.tool-card:hover::before { opacity: 1; }
+.tool-card.available { cursor: pointer; }
+.tool-card.coming-soon { opacity: .5; cursor: default; }
+
+.tool-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-bg, rgba(79,143,255,.12));
+  flex-shrink: 0;
+}
+.tool-icon svg { color: var(--card-accent, var(--accent)); }
+
+.tool-header { display: flex; align-items: center; justify-content: space-between; }
+.tool-name { font-size: 15px; font-weight: 600; }
+.tool-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(79,143,255,.1);
+  color: var(--accent);
+}
+.tool-tag.soon {
+  background: rgba(107,113,148,.1);
+  color: var(--muted);
+}
+.tool-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+.tool-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.tool-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* ── how it works ── */
+.steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 72px; }
+.step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+}
+.step-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.step-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* ── footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 28px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-left { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.footer-right { display: flex; gap: 20px; }
+.footer-link { font-size: 12px; color: var(--muted); text-decoration: none; }
+.footer-link:hover { color: var(--text); }
+
+@media (max-width: 640px) {
+  .hero { padding: 60px 20px 48px; }
+  .hero-title { font-size: 32px; }
+  .stat-strip { flex-wrap: wrap; }
+  .section { padding: 0 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-logo">cryptiq<span>.</span></div>
+  <div class="topbar-badge">beta</div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-status" id="api-status">
+    <div class="status-dot"></div>
+    <span>API online</span>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">Post-Quantum Cryptography Readiness</div>
+  <h1 class="hero-title">Know your crypto.<br><span class="dim">Before quantum does.</span></h1>
+  <p class="hero-sub">
+    Cryptiq discovers every cryptographic asset in your infrastructure,
+    scores its quantum risk, and gives you a prioritised migration roadmap —
+    before a cryptographically-relevant quantum computer arrives.
+  </p>
+  <a href="#tools" class="hero-cta">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Start scanning
+  </a>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-num" id="stat-scans">—</div>
+    <div class="stat-label">Total scans</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" id="stat-hosts">—</div>
+    <div class="stat-label">SSH hosts</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" id="stat-vuln" style="color:var(--critical)">—</div>
+    <div class="stat-label">Vulnerable</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" id="stat-pct" style="color:var(--low)">—</div>
+    <div class="stat-label">PQC ready</div>
+  </div>
+</div>
+
+<section class="section" id="tools">
+  <div class="section-label">Scanning tools</div>
+  <div class="tools-grid">
+
+    <a href="/tls" class="tool-card available" style="--card-accent:#4f8fff;--icon-bg:rgba(79,143,255,.12);">
+      <div class="tool-header">
+        <div class="tool-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <span class="tool-tag">Live</span>
+      </div>
+      <div>
+        <div class="tool-name">TLS Scanner</div>
+        <div class="tool-desc">Scan HTTPS endpoints for certificate algorithms, TLS version, key exchange, and PQC readiness. Supports CT log integration.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">x.509 certs</span>
+        <span class="tool-chip">KEX analysis</span>
+        <span class="tool-chip">CBOM</span>
+        <span class="tool-chip">AWS ACM</span>
+      </div>
+    </a>
+
+    <a href="/ssh" class="tool-card available" style="--card-accent:#a78bfa;--icon-bg:rgba(167,139,250,.12);">
+      <div class="tool-header">
+        <div class="tool-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <span class="tool-tag">Live</span>
+      </div>
+      <div>
+        <div class="tool-name">SSH Scanner</div>
+        <div class="tool-desc">Discover SSH hosts on your network. Extract host keys, KEX algorithms, ciphers, and MACs. Network-wide CIDR scanning included.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">Network discover</span>
+        <span class="tool-chip">Host keys</span>
+        <span class="tool-chip">CBOM</span>
+        <span class="tool-chip">PDF report</span>
+      </div>
+    </a>
+
+    <div class="tool-card coming-soon" style="--card-accent:#6b7194;">
+      <div class="tool-header">
+        <div class="tool-icon" style="--icon-bg:rgba(107,113,148,.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span class="tool-tag soon">Coming soon</span>
+      </div>
+      <div>
+        <div class="tool-name">PKI Discovery</div>
+        <div class="tool-desc">Map your internal certificate authority hierarchy, discover all issued certificates, and flag quantum-vulnerable signing algorithms.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">CA hierarchy</span>
+        <span class="tool-chip">CRL/OCSP</span>
+        <span class="tool-chip">CBOM</span>
+      </div>
+    </div>
+
+    <div class="tool-card coming-soon" style="--card-accent:#6b7194;">
+      <div class="tool-header">
+        <div class="tool-icon" style="--icon-bg:rgba(107,113,148,.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <span class="tool-tag soon">Coming soon</span>
+      </div>
+      <div>
+        <div class="tool-name">Code Signing</div>
+        <div class="tool-desc">Discover code signing certificates, verify algorithm strength, and track signing key rotation across your release pipeline.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">CI/CD</span>
+        <span class="tool-chip">Key vaults</span>
+        <span class="tool-chip">SBOM</span>
+      </div>
+    </div>
+
+    <div class="tool-card coming-soon" style="--card-accent:#6b7194;">
+      <div class="tool-header">
+        <div class="tool-icon" style="--icon-bg:rgba(107,113,148,.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <span class="tool-tag soon">Coming soon</span>
+      </div>
+      <div>
+        <div class="tool-name">VPN Discovery</div>
+        <div class="tool-desc">Probe VPN endpoints for IKE version, cipher suites, and DH group strength. Identify legacy configurations at risk.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">IKEv1/v2</span>
+        <span class="tool-chip">IPSec</span>
+        <span class="tool-chip">DH groups</span>
+      </div>
+    </div>
+
+    <a href="/ssh/report" class="tool-card available" style="--card-accent:#3ecf8e;--icon-bg:rgba(62,207,142,.12);">
+      <div class="tool-header">
+        <div class="tool-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <span class="tool-tag">Live</span>
+      </div>
+      <div>
+        <div class="tool-name">Readiness Report</div>
+        <div class="tool-desc">Generate a consulting-grade PDF covering your full crypto asset inventory, risk breakdown, and 4-phase remediation roadmap.</div>
+      </div>
+      <div class="tool-meta">
+        <span class="tool-chip">Executive summary</span>
+        <span class="tool-chip">Roadmap</span>
+        <span class="tool-chip">PDF</span>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="section-label">How it works</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-title">Discover</div>
+      <div class="step-desc">Scan domains, IP ranges, or cloud accounts. Find every SSH server, TLS endpoint, and cryptographic asset automatically.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-title">Classify</div>
+      <div class="step-desc">Every algorithm is classified by quantum vulnerability. RSA, ECDSA, DH — flagged. Hybrid PQC, ML-KEM — noted. Pure PQC — green.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-title">Inventory</div>
+      <div class="step-desc">Build a CBOM (Cryptography Bill of Materials) in CycloneDX 1.6 format. Tag assets with owner, environment, and upgrade status.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-title">Report</div>
+      <div class="step-desc">Generate a consulting PDF with executive summary, critical findings, and a phased remediation roadmap tied to NIST PQC standards.</div>
+    </div>
+  </div>
+
+</section>
+
+<footer>
+  <div class="footer-left">cryptiq · internal tool · not for public distribution</div>
+  <div class="footer-right">
+    <a href="/docs" class="footer-link">API docs</a>
+    <a href="/ssh/docs" class="footer-link">SSH API</a>
+    <a href="/health" class="footer-link">Health</a>
+  </div>
+</footer>
+
+<script>
+async function loadStats() {
+  try {
+    const [inv, scans] = await Promise.all([
+      fetch('/ssh/inventory').then(r => r.ok ? r.json() : null),
+      fetch('/scans').then(r => r.ok ? r.json() : null),
+    ]);
+    if (inv) {
+      document.getElementById('stat-hosts').textContent = inv.total_hosts;
+      document.getElementById('stat-vuln').textContent = inv.quantum_vulnerable;
+      document.getElementById('stat-pct').textContent = inv.pqc_readiness_percent + '%';
+    }
+    if (scans && scans.scans) {
+      document.getElementById('stat-scans').textContent = scans.scans.length;
+    }
+  } catch(e) {}
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch('/health');
+    if (!res.ok) throw new Error();
+    document.getElementById('api-status').innerHTML =
+      '<div class="status-dot"></div><span>API online</span>';
+  } catch(e) {
+    document.getElementById('api-status').innerHTML =
+      '<div class="status-dot" style="background:var(--critical)"></div><span>API offline</span>';
+  }
+}
+
+checkHealth();
+loadStats();
+</script>
+</body>
+</html>

@@ -1,10 +1,71 @@
-cryptiq.db
-*.json
+# ── Python ───────────────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Databases ─────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Scan output files ─────────────────────────────────────────────
+scan_results_*.json
+cbom_*.json
+*.cbom.json
+cryptiq_report_*.pdf
+
+# ── Logs ──────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Environment / secrets ─────────────────────────────────────────
 .env
-domains.csv
-*.ipynb
-Crypto_funcs/
-scan_results_*
-cbom_*ssh_scanner.db
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+id_ecdsa
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# ── Editors ───────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Build / dist ──────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# ── Testing ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── MyPy / type checking ──────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
