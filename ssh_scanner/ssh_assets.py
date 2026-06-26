@@ -207,7 +207,7 @@ def take_fleet_snapshot(db: Session, label: Optional[str] = None) -> SSHFleetSna
     Capture current inventory state as a snapshot.
     Call this weekly via a cron job to build trend data.
     """
-    from ssh_database import get_inventory_summary
+    from ssh_scanner.ssh_database import get_inventory_summary
     summary = get_inventory_summary(db)
 
     snap = SSHFleetSnapshot(
@@ -288,7 +288,7 @@ def get_enriched_assets(db: Session, limit: int = 1000) -> list[EnrichedAsset]:
     This is the data source for report generation.
     """
     from sqlalchemy import func
-    from ssh_database import SSHScanRecord, SSHHostKeyRecord
+    from ssh_scanner.ssh_database import SSHScanRecord, SSHHostKeyRecord
 
     # Latest scan per host+port
     latest_sub = (

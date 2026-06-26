@@ -380,5 +380,5 @@ def _classical_security_level(algorithm: str, key_size: Optional[int]) -> int:
 
 def _classify_host_key_risk(algorithm: Optional[str], key_size: Optional[int]) -> str:
     """Local shortcut for the risk level of just the host key."""
-    from ssh_risk import classify_host_key
+    from ssh_scanner.ssh_risk import classify_host_key
     return classify_host_key(algorithm, key_size)["risk_contribution"]

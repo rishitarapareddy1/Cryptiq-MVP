@@ -93,7 +93,6 @@ MEDIUM_RISK_KEX = {
 HYBRID_KEX = {
     # OpenSSH 9.x default
     "sntrup761x25519-sha512@openssh.com",
-    "sntrup761x25519-sha512",
     "mlkem768x25519-sha256",          # IETF draft-josefsson
     "x25519-kyber-512r3-sha256-d00@amazon.com",
 }
@@ -216,7 +215,11 @@ def classify_kex(kex: Optional[str]) -> dict:
     findings = []
 
     if kex in QUANTUM_VULNERABLE_KEX:
-        if "group1" in kex or "sha1" in kex.split("-")[-1]:
+        # Critical: group1 (768-bit) or SHA-1 based — both classically weak too
+        parts = kex.split("-")
+        uses_sha1 = parts[-1] in ("sha1", "sha1@openssh.com")
+        is_group1 = "group1" in parts
+        if is_group1 or uses_sha1:
             findings.append(f"Critically weak KEX: {kex} (legacy DH + SHA-1)")
             return {"quantum_vulnerable": True, "risk_contribution": "critical",
                     "pqc_status": "vulnerable", "findings": findings}

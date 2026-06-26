@@ -33,7 +33,7 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 # ── TLS scanner imports ─────────────────────────────────────────
@@ -218,20 +218,20 @@ def get_aws_cbom():
 
 class SSHScanRequest(BaseModel):
     host: str
-    port: int = 22
-    timeout: float = 10.0
+    port: int = Field(22, ge=1, le=65535)
+    timeout: float = Field(10.0, ge=1.0, le=60.0)
 
 class SSHBulkScanRequest(BaseModel):
     hosts: list[str]
-    port: int = 22
-    timeout: float = 10.0
-    max_workers: int = 20
+    port: int = Field(22, ge=1, le=65535)
+    timeout: float = Field(10.0, ge=1.0, le=60.0)
+    max_workers: int = Field(20, ge=1, le=100)
 
 class SSHDiscoverRequest(BaseModel):
     target: str
-    port: int = 22
-    timeout: float = 3.0
-    max_workers: int = 100
+    port: int = Field(22, ge=1, le=65535)
+    timeout: float = Field(3.0, ge=0.5, le=30.0)
+    max_workers: int = Field(100, ge=1, le=500)
     auto_scan: bool = False
 
 class SSHAssetTagRequest(BaseModel):
