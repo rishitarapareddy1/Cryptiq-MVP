@@ -211,8 +211,13 @@ textarea{width:100%;min-height:90px;resize:vertical;}
 <!-- CBOM -->
 <div id="page-cbom" class="page">
   <div class="page-header"><div class="page-title">CBOM export</div><div class="page-sub">Generate a CycloneDX 1.6 CBOM for scanned domains or AWS assets.</div></div>
-  <div style="display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap;">
-    <button class="btn btn-primary" onclick="loadCBOM('aws')">AWS CBOM</button>
+  <div style="display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="input-group">
+        <label>Domain</label>
+        <input type="text" id="cbom-domain" placeholder="google.com">
+    </div>
+    <button class="btn btn-primary" onclick="loadTLSCBOM()">TLS CBOM</button>
+    <button class="btn btn-ghost" onclick="loadCBOM('aws')">AWS CBOM</button>
     <button class="btn btn-ghost" id="cbom-dl" style="display:none;" onclick="downloadCBOM()">Download JSON</button>
   </div>
   <div id="cbom-content"></div>
@@ -400,6 +405,24 @@ async function loadHistory() {
   } catch(e) {
     document.getElementById('history-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
   }
+}
+
+async function loadTLSCBOM() {
+    const domain = document.getElementById('cbom-domain').value.trim();
+    if (!domain) { toast('Enter a domain','error'); return; }
+    document.getElementById('cbom-content').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Generating…</div></div>';
+    document.getElementById('cbom-dl').style.display='none'; _cbomData=null;
+    try {
+        const res = await fetch(`/tls/cbom/${encodeURIComponent(domain)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        _cbomData = await res.json();
+        document.getElementById('cbom-content').innerHTML=`<pre class="cbom-pre">${escapeHtml(JSON.stringify(_cbomData,null,2))}</pre>`;
+        document.getElementById('cbom-dl').style.display='inline-flex';
+        toast('CBOM generated','success');
+    } catch(e) {
+        document.getElementById('cbom-content').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+        toast(e.message,'error');
+    }
 }
 
 async function loadCBOM(type) {
