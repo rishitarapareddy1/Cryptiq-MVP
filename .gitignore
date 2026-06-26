@@ -1,0 +1,10 @@
+cryptiq.db
+*.json
+__pycache__/
+*.pyc
+.env
+domains.csv
+*.ipynb
+Crypto_funcs/
+scan_results_*
+cbom_*

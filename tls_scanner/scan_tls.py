@@ -245,6 +245,18 @@ def convert_to_cbom(scan_results):
         bom['components'].append(build_component(result))
     return bom
 
+def map_primitive(algorithm):
+    mapping = {
+        'ECDH': 'keyagree',
+        'RSA': 'pke',
+        'DH': 'keyagree',
+        'ECDSA': 'signature',
+        'ECC': 'pke',
+        'X25519MLKEM768': 'kem',
+        'Unknown': 'unknown'
+    }
+    return mapping.get(algorithm, 'unknown')
+
 def build_component(result):
     return {
         'type': 'cryptographic-asset',
@@ -252,13 +264,14 @@ def build_component(result):
         'cryptoProperties': {
             'assetType': 'certificate',
             'algorithmProperties': {
-                'primitive': result['algorithm'].lower(),
+                'primitive': map_primitive(result['algorithm']),
                 'keySize': result['keysize'],
             },
+            'nistQuantumSecurityLevel': 0 if result['quantum_vulnerable'] else 3,
             'certificateProperties': {
                 'subjectName': result['subject'],
                 'issuerName': result['issuer'],
-                'notAfter': result['expiry'],
+                'notValidAfter': result['expiry'],
                 'signatureAlgorithm': result['signature_algorithm']
             }
         },
