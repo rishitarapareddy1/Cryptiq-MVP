@@ -4,6 +4,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from database import Session, ScanRecord
 from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys
+
+from ssh_scanner.scan_ssh import scan_ssh, scan_ssh_bulk
+from ssh_scanner.ssh_risk import assess_risk_from_scan
+from ssh_scanner.ssh_database import save_scan, get_scan_history, get_latest_scan, get_inventory_summary, get_db
+
 # also import scan_domain and convert_to_cbom from your scanner file
 
 # 2. create the app
@@ -124,3 +129,84 @@ def get_aws_keys():
     results = scan_kms_keys()
     # return the results
     return {"results": results}
+
+class SSHScanRequest(BaseModel):
+    host: str
+    port: int = 22
+
+class SSHBulkScanRequest(BaseModel):
+    hosts: list[str]
+    port: int = 22
+
+@app.post("/ssh/scan")
+def ssh_scan(request: SSHScanRequest):
+    try:
+        result = scan_ssh(request.host, request.port)
+        risk = assess_risk_from_scan(result)
+        db = next(get_db())
+        record = save_scan(db, result, risk)
+        return {
+            'host': result.host,
+            'port': result.port,
+            'ssh_version': result.ssh_version,
+            'host_key_algorithm': record.host_key_algorithm,
+            'host_key_size': record.host_key_size,
+            'key_exchange': record.key_exchange,
+            'cipher': record.cipher,
+            'quantum_vulnerable': risk.quantum_vulnerable,
+            'risk_level': risk.risk_level,
+            'pqc_status': risk.pqc_status,
+            'migration_priority': risk.migration_priority,
+            'findings': risk.findings
+        }
+    except Exception as e:
+        return {"error": str(e), "host": request.host}
+
+@app.post("/ssh/scan/bulk")
+def ssh_scan_bulk(request: SSHBulkScanRequest):
+    results = scan_ssh_bulk(request.hosts, request.port)
+    db = next(get_db())
+    output = []
+    for result in results:
+        risk = assess_risk_from_scan(result)
+        record = save_scan(db, result, risk)
+        output.append({
+            'host': result.host,
+            'ssh_version': result.ssh_version,
+            'risk_level': risk.risk_level,
+            'pqc_status': risk.pqc_status,
+            'quantum_vulnerable': risk.quantum_vulnerable,
+            'findings': risk.findings
+        })
+    return {"results": output}
+
+@app.get("/ssh/scans")
+def get_ssh_scans():
+    db = next(get_db())
+    scans = get_scan_history(db)
+    return {"scans": [
+        {
+            'host': s.host,
+            'risk_level': s.risk_level,
+            'pqc_status': s.pqc_status,
+            'scanned_at': str(s.scanned_at)
+        } for s in scans
+    ]}
+
+@app.get("/ssh/scans/{host}")
+def get_ssh_scans_by_host(host: str):
+    db = next(get_db())
+    scans = get_scan_history(db, host=host)
+    return {"scans": [
+        {
+            'host': s.host,
+            'risk_level': s.risk_level,
+            'pqc_status': s.pqc_status,
+            'scanned_at': str(s.scanned_at)
+        } for s in scans
+    ]}
+
+@app.get("/ssh/inventory")
+def get_ssh_inventory():
+    db = next(get_db())
+    return get_inventory_summary(db)

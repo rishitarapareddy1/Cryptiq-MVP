@@ -26,8 +26,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any
 
-from scan_ssh import SSHScanResult, SSHHostKey
-from ssh_risk import SSHRiskAssessment, assess_risk, classify_kex, classify_cipher, classify_mac
+from ssh_scanner.scan_ssh import SSHScanResult, SSHHostKey
+from ssh_scanner.ssh_risk import SSHRiskAssessment, assess_risk, classify_kex, classify_cipher, classify_mac
 
 
 # ---------------------------------------------------------------------------

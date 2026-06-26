@@ -7,4 +7,4 @@ domains.csv
 *.ipynb
 Crypto_funcs/
 scan_results_*
-cbom_*
+cbom_*ssh_scanner.db

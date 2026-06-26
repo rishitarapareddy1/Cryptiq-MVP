@@ -93,6 +93,7 @@ MEDIUM_RISK_KEX = {
 HYBRID_KEX = {
     # OpenSSH 9.x default
     "sntrup761x25519-sha512@openssh.com",
+    "sntrup761x25519-sha512",
     "mlkem768x25519-sha256",          # IETF draft-josefsson
     "x25519-kyber-512r3-sha256-d00@amazon.com",
 }

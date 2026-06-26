@@ -39,8 +39,8 @@ from sqlalchemy.orm import DeclarativeBase, relationship, Session, sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import JSON  # fallback for SQLite
 
-from scan_ssh import SSHScanResult
-from ssh_risk import SSHRiskAssessment
+from ssh_scanner.scan_ssh import SSHScanResult
+from ssh_scanner.ssh_risk import SSHRiskAssessment
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +298,7 @@ def save_scan(
 
     # Host key records (all advertised keys)
     for hk in scan_result.host_keys:
-        from ssh_risk import classify_host_key
+        from ssh_scanner.ssh_risk import classify_host_key
         hk_risk = classify_host_key(hk.algorithm, hk.key_size)
         db.add(SSHHostKeyRecord(
             scan_id=record.id,
