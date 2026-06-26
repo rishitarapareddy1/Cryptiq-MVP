@@ -1,6 +1,9 @@
 import boto3
 import json
 from tls_scanner.scan_tls import is_quantum_vulnerable
+import uuid
+from datetime import datetime, timezone
+from tls_scanner.scan_tls import map_primitive, is_quantum_vulnerable
 
 def get_acm_certificates(region='us-east-1'):
     # create a boto3 client for 'acm' in the given region
@@ -97,6 +100,80 @@ def scan_kms_keys(region='us-east-1'):
     #   KeyId, KeyAlgorithm, KeyState, Description
     # return list of results
     return results
+
+def build_acm_component(cert):
+    # return a cryptographic-asset component dict
+    return {
+        'type': 'cryptographic-asset',
+        'name': f"{cert['domain_name']} TLS Certificate",
+        'cryptoProperties': {
+            'assetType': 'certificate',
+            'algorithmProperties': {
+                'primitive': map_primitive(cert['algorithm']),
+                'keySize': cert['key_size'],
+            },
+            'nistQuantumSecurityLevel': 0 if cert['quantum_vulnerable'] else 3,
+            'certificateProperties': {
+                'subjectName': cert['domain_name'],
+                'issuerName': cert['issuer'],
+                'notValidAfter': cert['expiry'],
+            }
+        }
+    }
+    # use cert fields: domain_name, algorithm, key_size, issuer, expiry
+    # assetType should be 'certificate'
+    # use map_primitive() from scan_tls to map the algorithm
+
+def build_kms_component(key):
+    # return a cryptographic-asset component dict  
+    return {
+            'type': 'cryptographic-asset',
+            'name': f"{key['key_id']} KMS Key",
+            'cryptoProperties': {
+                'assetType': 'relatedCryptoMaterial',
+                'algorithmProperties': {
+                    'primitive': map_primitive(key['algorithm']),
+                },
+                'nistQuantumSecurityLevel': 0 if key['quantum_vulnerable'] else 3,
+            },
+            'properties': [
+                {'name': 'description', 'value': key['description']},
+                {'name': 'status', 'value': key['status']},
+                {'name': 'quantum_vulnerable', 'value': str(key['quantum_vulnerable']).lower()}
+            ]
+        }
+
+def convert_aws_to_cbom(cert_results, kms_results):
+    # cert_results is the list from scan_acm_certificates()
+    if isinstance(cert_results, dict):
+        cert_results = [cert_results]
+   
+    # kms_results is the list from scan_kms_keys()
+    if isinstance(kms_results, dict):
+        kms_results = [kms_results]
+    # build the top level CBOM structure same as convert_to_cbom()
+    bom = {
+        'bomFormat': 'CycloneDX',
+        'specVersion': '1.6',
+        'serialNumber': str(uuid.uuid4()),
+        'version': 1,
+        'metadata': {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'component': {
+                'type': 'application',
+                'name': 'Cryptiq AWS Scanner'
+            }
+        },
+        'components': []  # add this
+}
+    # for each cert in cert_results call build_acm_component()
+    for cert in cert_results:
+        bom['components'].append(build_acm_component(cert))
+    # for each key in kms_results call build_kms_component()
+    for key in kms_results:
+        bom['components'].append(build_kms_component(key))
+    # return the full cbom dict
+    return bom
 #if __name__ == '__main__':
     # call scan_acm_certificates
     #results = scan_acm_certificates()
