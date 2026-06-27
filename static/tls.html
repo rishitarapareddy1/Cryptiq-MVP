@@ -131,6 +131,10 @@ textarea{width:100%;min-height:90px;resize:vertical;}
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     Scan domain
   </div>
+  <div class="nav-item" data-page="discover" onclick="nav(this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+    Discover & scan
+</div>
   <div class="nav-item" data-page="bulk" onclick="nav(this)">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     Bulk scan
@@ -168,7 +172,28 @@ textarea{width:100%;min-height:90px;resize:vertical;}
   </div>
   <div id="scan-result"></div>
 </div>
-
+<!-- DISCOVER -->
+<div id="page-discover" class="page">
+  <div class="page-header">
+    <div class="page-title">Discover & scan</div>
+    <div class="page-sub">Auto-discover all subdomains from CT logs and Route53, then bulk scan them.</div>
+  </div>
+  <div class="scan-form">
+    <div class="input-group">
+      <label>Root domain</label>
+      <input type="text" id="discover-domain" placeholder="stripe.com">
+    </div>
+    <button class="btn btn-ghost" id="discover-btn" onclick="doDiscover()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Discover only
+    </button>
+    <button class="btn btn-primary" id="discover-scan-btn" onclick="doDiscoverAndScan()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Discover & scan all
+    </button>
+  </div>
+  <div id="discover-result"></div>
+</div>
 <!-- BULK -->
 <div id="page-bulk" class="page">
   <div class="page-header"><div class="page-title">Bulk scan</div><div class="page-sub">Scan multiple domains at once. One per line.</div></div>
@@ -307,7 +332,69 @@ async function doScan() {
   }
 }
 document.getElementById('scan-domain').addEventListener('keydown',e=>{ if(e.key==='Enter') doScan(); });
+async function doDiscover() {
+  const domain = document.getElementById('discover-domain').value.trim();
+  if (!domain) { toast('Enter a root domain','error'); return; }
+  const btn = document.getElementById('discover-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Discovering…';
+  document.getElementById('discover-result').innerHTML='';
+  try {
+    const res = await fetch('/discover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({root_domain:domain})});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const domains = data.domains||[];
+    const hosts = data.hosts||[];
+    document.getElementById('discover-result').innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Domains found</div><div class="stat-value">${domains.length}</div></div>
+        <div class="stat-card"><div class="stat-label">EC2 hosts</div><div class="stat-value">${hosts.length}</div></div>
+      </div>
+      <hr class="divider">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:8px;">DISCOVERED DOMAINS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${domains.map(d=>`<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-family:var(--mono);font-size:12px;">${d}</span>`).join('')}
+      </div>
+      ${hosts.length?`<hr class="divider">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:8px;">EC2 HOSTS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${hosts.map(h=>`<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-family:var(--mono);font-size:12px;">${h}</span>`).join('')}
+      </div>`:''}`;
+    toast(`Found ${domains.length} domains`,'success');
+  } catch(e) {
+    document.getElementById('discover-result').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+    toast('Failed: '+e.message,'error');
+  } finally {
+    btn.disabled=false; btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Discover only';
+  }
+}
 
+async function doDiscoverAndScan() {
+  const domain = document.getElementById('discover-domain').value.trim();
+  if (!domain) { toast('Enter a root domain','error'); return; }
+  const btn = document.getElementById('discover-scan-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Discovering & scanning…';
+  document.getElementById('discover-result').innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-title">Discovering subdomains and scanning…</div><div style="color:var(--muted);font-size:12px;margin-top:8px;">This may take a minute</div></div>';
+  try {
+    const res = await fetch('/discover/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({root_domain:domain})});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const results = data.results||[];
+    const vuln = results.filter(r=>r.quantum_vulnerable).length;
+    const summary = `<div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Domains found</div><div class="stat-value">${data.domains_found||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Scanned</div><div class="stat-value">${data.domains_scanned||0}</div></div>
+      <div class="stat-card"><div class="stat-label">Vulnerable</div><div class="stat-value" style="color:var(--critical)">${vuln}</div></div>
+      <div class="stat-card"><div class="stat-label">EC2 hosts</div><div class="stat-value">${(data.ec2_hosts||[]).length}</div></div>
+    </div><hr class="divider">`;
+    document.getElementById('discover-result').innerHTML = summary + results.map(renderTLSResult).join('');
+    toast(`Scanned ${results.length} domains`,'success');
+  } catch(e) {
+    document.getElementById('discover-result').innerHTML=`<div class="empty"><div class="empty-icon">✕</div><div class="empty-title">Failed</div><div class="empty-sub">${e.message}</div></div>`;
+    toast('Failed: '+e.message,'error');
+  } finally {
+    btn.disabled=false; btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Discover & scan all';
+  }
+}
 async function doBulk() {
   const domains = document.getElementById('bulk-domains').value.trim().split('\n').map(d=>d.trim()).filter(Boolean);
   if (!domains.length) { toast('Enter at least one domain','error'); return; }

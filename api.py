@@ -147,7 +147,54 @@ def scan(request: ScanRequest):
     cbom = convert_to_cbom(result)
     _save_tls_scan(result)
     return {"result": result, "cbom": cbom}
+from discovery import discover_assets
 
+class DiscoverRequest(BaseModel):
+    root_domain: str
+    region: str = 'us-east-1'
+
+@app.post("/discover", tags=["discovery"])
+def discover(request: DiscoverRequest):
+    """Auto-discover all domains and hosts for a root domain."""
+    assets = discover_assets(request.root_domain, request.region)
+    return assets
+
+@app.post("/discover/scan", tags=["discovery"])
+def discover_and_scan(request: DiscoverRequest):
+    """Discover all domains then immediately bulk scan them."""
+    assets = discover_assets(request.root_domain, request.region)
+    domains = assets['domains']
+    if not domains:
+        return {"domains_found": 0, "results": [], "cbom": None}
+    # bulk scan all discovered domains
+    session = DBSession()
+    results = []
+    try:
+        for domain in domains[:50]:  # cap at 50 to avoid timeout
+            try:
+                result = scan_domain(domain)
+                results.append(result)
+                session.add(ScanRecord(
+                    domain=result["domain"],
+                    tls_version=result["tls_version"],
+                    algorithm=result["algorithm"],
+                    quantum_vulnerable=result["quantum_vulnerable"],
+                    risk_level=result["risk_level"],
+                    pqc_status=result["pqc_status"],
+                ))
+            except Exception:
+                pass  # skip domains that fail
+        session.commit()
+    finally:
+        session.close()
+    cbom = convert_to_cbom(results)
+    return {
+        "domains_found": len(domains),
+        "domains_scanned": len(results),
+        "ec2_hosts": assets['hosts'],
+        "results": results,
+        "cbom": cbom
+    }
 
 @app.post("/scan/bulk", tags=["tls"])
 def bulk_scan(request: BulkScanRequest):
