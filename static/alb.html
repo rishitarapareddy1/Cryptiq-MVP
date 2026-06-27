@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptiq — ALB PQC Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0d11; --surface:#13161d; --surface2:#181b24;
+  --border:#1f2330; --border-hi:#2e3448;
+  --text:#e2e4ee; --muted:#6b7194;
+  --accent:#4f8fff; --accent-dim:#1a2f55;
+  --critical:#ff4d4d; --high:#ff8c42; --low:#3ecf8e; --hybrid:#a78bfa;
+  --mono:'IBM Plex Mono',monospace; --sans:'Inter',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:52px 1fr;min-height:100vh;}
+
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.topbar-logo{font-family:var(--mono);font-size:15px;font-weight:500;}
+.topbar-logo span{color:var(--accent);}
+.topbar-badge{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:2px 6px;}
+.topbar-spacer{flex:1;}
+.topbar-link{font-size:12px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:6px;transition:color .15s,background .15s;}
+.topbar-link:hover{color:var(--text);background:var(--border);}
+
+.sidebar{border-right:1px solid var(--border);padding:20px 0;background:var(--surface);position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;}
+.nav-section{padding:0 12px 4px;font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:16px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--muted);transition:color .12s,background .12s;border-left:2px solid transparent;user-select:none;}
+.nav-item:hover{color:var(--text);background:rgba(79,143,255,.06);}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);border-left-color:var(--accent);}
+
+.main{padding:32px 36px;overflow-y:auto;max-height:calc(100vh - 52px);}
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:28px;}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+.page-sub{color:var(--muted);font-size:13px;}
+
+.toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+input[type=text]{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 13px;outline:none;transition:border-color .15s;width:220px;}
+input[type=text]:focus{border-color:var(--accent);}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s,transform .1s;font-family:var(--sans);}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{opacity:.88;}
+.btn-danger{background:rgba(255,77,77,.15);color:var(--critical);border:1px solid rgba(255,77,77,.3);}
+.btn-danger:hover{background:rgba(255,77,77,.25);}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--border-hi);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.stat-value{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
+
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:13px;}
+th{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface);}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+.pill{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;}
+.pill-red{background:rgba(255,77,77,.15);color:var(--critical);}
+.pill-green{background:rgba(62,207,142,.15);color:var(--low);}
+.pill-muted{background:rgba(107,113,148,.15);color:var(--muted);}
+.pill-blue{background:rgba(79,143,255,.15);color:var(--accent);}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+
+/* ── Modal ── */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border-hi);border-radius:14px;width:min(700px,92vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:600;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+pre.diff .del{color:var(--critical);}
+pre.diff .add{color:var(--low);}
+
+.audit-entry{border-bottom:1px solid var(--border);padding:10px 0;font-size:12px;font-family:var(--mono);}
+.audit-entry:last-child{border-bottom:none;}
+.audit-ts{color:var(--muted);font-size:11px;}
+.audit-action{color:var(--accent);}
+.audit-outcome-success{color:var(--low);}
+.audit-outcome-dry_run{color:var(--hybrid);}
+.audit-outcome-error,.audit-outcome-prod_blocked{color:var(--critical);}
+
+.notice{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.notice-info{background:var(--accent-dim);border:1px solid rgba(79,143,255,.3);color:var(--accent);}
+.notice-warn{background:rgba(255,140,66,.1);border:1px solid rgba(255,140,66,.3);color:var(--high);}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- topbar -->
+<nav class="topbar">
+  <div class="topbar-logo">Cryptiq<span> PQC</span></div>
+  <span class="topbar-badge">ALB Dashboard</span>
+  <div class="topbar-spacer"></div>
+  <a href="/" class="topbar-link">Home</a>
+  <a href="/tls" class="topbar-link">TLS</a>
+  <a href="/ssh" class="topbar-link">SSH</a>
+  <a href="/docs" class="topbar-link">API</a>
+</nav>
+
+<!-- sidebar -->
+<aside class="sidebar">
+  <div class="nav-section">Views</div>
+  <div class="nav-item active" onclick="showPage('listeners')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    ALB Listeners
+  </div>
+  <div class="nav-item" onclick="showPage('audit')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Audit Log
+  </div>
+</aside>
+
+<!-- main -->
+<main class="main">
+
+  <!-- ── Listeners page ── -->
+  <div id="page-listeners" class="page active">
+    <div class="page-header">
+      <div class="page-title">ALB / NLB TLS Listeners</div>
+      <div class="page-sub">Read-only discovery. Red rows need migration. Click "Open migration PR" to propose the change.</div>
+    </div>
+
+    <div class="toolbar">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">AWS Region</label>
+        <input type="text" id="region-input" value="us-east-1" placeholder="us-east-1">
+      </div>
+      <div style="align-self:flex-end">
+        <button class="btn btn-primary" onclick="loadListeners()">
+          <span id="discover-spinner" style="display:none" class="spinner"></span>
+          Discover Listeners
+        </button>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="stats" style="display:none">
+      <div class="stat-card"><div class="stat-label">Total Listeners</div><div class="stat-value" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Needs Migration</div><div class="stat-value" style="color:var(--critical)" id="stat-vuln">0</div></div>
+      <div class="stat-card"><div class="stat-label">PQ Ready</div><div class="stat-value" style="color:var(--low)" id="stat-pq">0</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="listener-table" style="display:none">
+        <thead>
+          <tr>
+            <th>Load Balancer</th>
+            <th>Port / Proto</th>
+            <th>Policy</th>
+            <th>Environment</th>
+            <th>PQ Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="listener-tbody"></tbody>
+      </table>
+    </div>
+    <div id="listener-empty" class="empty-state" style="display:none">
+      <div class="icon">🔍</div>
+      <div>No HTTPS/TLS listeners found in this region.</div>
+    </div>
+    <div id="listener-error" class="notice notice-warn" style="display:none"></div>
+  </div>
+
+  <!-- ── Audit log page ── -->
+  <div id="page-audit" class="page">
+    <div class="page-header">
+      <div class="page-title">Audit Log</div>
+      <div class="page-sub">Append-only record of every Cryptiq action. Never modified.</div>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-ghost" onclick="loadAudit()">Refresh</button>
+    </div>
+    <div id="audit-list"></div>
+    <div id="audit-empty" class="empty-state" style="display:none">
+      <div class="icon">📋</div>
+      <div>No audit entries yet. Run a scan or migration.</div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ── Migration modal ── -->
+<div class="modal-backdrop" id="migrate-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Migration Preview</div>
+      <button class="modal-close" onclick="closeModal('migrate-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice notice-info" style="margin-bottom:14px">
+        This is a <strong>dry run</strong>. Review the diff below, then click "Open PR" to propose the change.
+        Cryptiq will not merge the PR — a human does that.
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">GitHub Repo (owner/name)</div>
+        <input type="text" id="modal-gh-repo" placeholder="e.g. acmecorp/infra" style="width:100%">
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Terraform Repo Path (local)</div>
+        <input type="text" id="modal-tf-repo" placeholder="e.g. /home/user/infra" style="width:100%">
+      </div>
+
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Proposed Diff</div>
+      <pre class="diff" id="modal-diff">Click "Preview Diff" to load.</pre>
+
+      <div id="modal-pr-result" style="display:none;margin-top:14px">
+        <div class="notice notice-info">PR opened: <a id="modal-pr-link" href="#" target="_blank" style="color:var(--accent)"></a></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('migrate-modal')">Cancel</button>
+      <button class="btn btn-ghost" id="modal-preview-btn" onclick="previewDiff()">
+        <span id="preview-spinner" style="display:none" class="spinner"></span>
+        Preview Diff
+      </button>
+      <button class="btn btn-primary" id="modal-open-pr-btn" onclick="openPR()" disabled>
+        <span id="open-pr-spinner" style="display:none" class="spinner"></span>
+        Open PR
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _listeners = [];
+let _currentListener = null;
+let _lastDryRunResult = null;
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'audit') loadAudit();
+}
+
+// ── Discovery ────────────────────────────────────────────────────────────────
+async function loadListeners() {
+  const region = document.getElementById('region-input').value.trim() || 'us-east-1';
+  const spinner = document.getElementById('discover-spinner');
+  const errEl = document.getElementById('listener-error');
+  const statsEl = document.getElementById('stats');
+  const tableEl = document.getElementById('listener-table');
+  const emptyEl = document.getElementById('listener-empty');
+
+  spinner.style.display = 'inline-block';
+  errEl.style.display = 'none';
+  statsEl.style.display = 'none';
+  tableEl.style.display = 'none';
+  emptyEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`/aws/alb-listeners?region=${encodeURIComponent(region)}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    _listeners = data.listeners || [];
+    renderListeners(_listeners);
+  } catch (e) {
+    errEl.textContent = 'Discovery failed: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    spinner.style.display = 'none';
+  }
+}
+
+function renderListeners(listeners) {
+  const statsEl = document.getElementById('stats');
+  const tableEl = document.getElementById('listener-table');
+  const emptyEl = document.getElementById('listener-empty');
+  const tbody = document.getElementById('listener-tbody');
+
+  if (!listeners.length) {
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  const vuln = listeners.filter(l => !l.is_post_quantum).length;
+  const pq = listeners.length - vuln;
+  document.getElementById('stat-total').textContent = listeners.length;
+  document.getElementById('stat-vuln').textContent = vuln;
+  document.getElementById('stat-pq').textContent = pq;
+  statsEl.style.display = 'grid';
+
+  tbody.innerHTML = '';
+  listeners.forEach(l => {
+    const pqPill = l.is_post_quantum
+      ? '<span class="pill pill-green">PQ Ready</span>'
+      : '<span class="pill pill-red">Needs Migration</span>';
+    const envPill = l.environment
+      ? `<span class="pill ${l.environment === 'prod' ? 'pill-red' : 'pill-muted'}">${l.environment}</span>`
+      : '<span class="pill pill-muted">untagged</span>';
+
+    const actionBtn = l.is_post_quantum
+      ? '<span style="color:var(--muted);font-size:12px">PQ Ready</span>'
+      : `<button class="btn btn-danger btn-sm" onclick="openMigrateModal(${JSON.stringify(l).replace(/"/g, '&quot;')})">Open Migration PR</button>`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="font-family:var(--mono)">${l.lb_name}</span></td>
+      <td><span style="font-family:var(--mono)">${l.port} / ${l.protocol}</span></td>
+      <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${l.ssl_policy_name}</span></td>
+      <td>${envPill}</td>
+      <td>${pqPill}</td>
+      <td>${actionBtn}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tableEl.style.display = 'table';
+}
+
+// ── Migration modal ──────────────────────────────────────────────────────────
+function openMigrateModal(listener) {
+  _currentListener = listener;
+  _lastDryRunResult = null;
+  document.getElementById('modal-title').textContent = `Migrate ${listener.lb_name}:${listener.port}`;
+  document.getElementById('modal-diff').textContent = 'Click "Preview Diff" to load.';
+  document.getElementById('modal-pr-result').style.display = 'none';
+  document.getElementById('modal-open-pr-btn').disabled = true;
+  document.getElementById('migrate-modal').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+async function previewDiff() {
+  if (!_currentListener) return;
+  const ghRepo = document.getElementById('modal-gh-repo').value.trim();
+  const tfRepo = document.getElementById('modal-tf-repo').value.trim();
+  if (!ghRepo || !tfRepo) { alert('Enter GitHub repo and Terraform path.'); return; }
+
+  const spinner = document.getElementById('preview-spinner');
+  spinner.style.display = 'inline-block';
+  document.getElementById('modal-preview-btn').disabled = true;
+
+  try {
+    const res = await fetch('/migrate/alb-tls', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        listener_arn: _currentListener.listener_arn,
+        tf_repo: tfRepo,
+        gh_repo: ghRepo,
+        dry_run: true
+      })
+    });
+    const data = await res.json();
+    if (data.status === 'dry_run' && data.diff) {
+      _lastDryRunResult = data;
+      renderDiff(data.diff);
+      document.getElementById('modal-open-pr-btn').disabled = false;
+    } else {
+      document.getElementById('modal-diff').textContent = JSON.stringify(data, null, 2);
+    }
+  } catch (e) {
+    document.getElementById('modal-diff').textContent = 'Error: ' + e.message;
+  } finally {
+    spinner.style.display = 'none';
+    document.getElementById('modal-preview-btn').disabled = false;
+  }
+}
+
+function renderDiff(diff) {
+  const pre = document.getElementById('modal-diff');
+  pre.innerHTML = '';
+  diff.split('\n').forEach(line => {
+    const span = document.createElement('span');
+    span.textContent = line + '\n';
+    if (line.startsWith('-') && !line.startsWith('---')) span.className = 'del';
+    else if (line.startsWith('+') && !line.startsWith('+++')) span.className = 'add';
+    pre.appendChild(span);
+  });
+}
+
+async function openPR() {
+  if (!_currentListener || !_lastDryRunResult) return;
+  const ghRepo = document.getElementById('modal-gh-repo').value.trim();
+  const tfRepo = document.getElementById('modal-tf-repo').value.trim();
+  if (!confirm('Open a real migration PR in GitHub now? Cryptiq will NOT merge it.')) return;
+
+  const spinner = document.getElementById('open-pr-spinner');
+  spinner.style.display = 'inline-block';
+  document.getElementById('modal-open-pr-btn').disabled = true;
+
+  try {
+    const res = await fetch('/migrate/alb-tls', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        listener_arn: _currentListener.listener_arn,
+        tf_repo: tfRepo,
+        gh_repo: ghRepo,
+        dry_run: false
+      })
+    });
+    const data = await res.json();
+    if (data.pr_url) {
+      const linkEl = document.getElementById('modal-pr-link');
+      linkEl.href = data.pr_url;
+      linkEl.textContent = data.pr_url;
+      document.getElementById('modal-pr-result').style.display = 'block';
+    } else {
+      alert('Unexpected response: ' + JSON.stringify(data));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    spinner.style.display = 'none';
+  }
+}
+
+// ── Audit log ────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  const listEl = document.getElementById('audit-list');
+  const emptyEl = document.getElementById('audit-empty');
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  emptyEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/audit-log?limit=200');
+    const data = await res.json();
+    const entries = (data.entries || []).reverse();
+    if (!entries.length) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    listEl.innerHTML = entries.map(e => `
+      <div class="audit-entry">
+        <span class="audit-ts">${e.timestamp}</span>
+        &nbsp;·&nbsp;
+        <span class="audit-action">${e.action}</span>
+        &nbsp;→&nbsp;
+        <span class="audit-outcome-${e.outcome}">${e.outcome}</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--muted)">${e.target}</span>
+        ${e.pr_url ? `&nbsp;<a href="${e.pr_url}" target="_blank" style="color:var(--accent)">PR ↗</a>` : ''}
+      </div>
+    `).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="color:var(--critical)">Failed to load audit log: ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>

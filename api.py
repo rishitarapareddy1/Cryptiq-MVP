@@ -39,6 +39,8 @@ from sqlalchemy.orm import Session
 # ── TLS scanner imports ─────────────────────────────────────────
 from tls_scanner.scan_tls import scan_domain, convert_to_cbom
 from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys, convert_aws_to_cbom
+from tls_scanner.scan_alb import discover_alb_listeners
+from tls_migration.alb_cbom import convert_alb_to_cbom
 from database import Session as DBSession, ScanRecord
 
 # ── SSH scanner imports ─────────────────────────────────────────
@@ -57,6 +59,9 @@ from ssh_scanner.ssh_assets import (
 from ssh_scanner.ssh_report import generate_report
 
 from ssh_migration.api import router as migration_router
+from tls_migration.run import run_migration, PROD_CONFIRMATION_TOKEN
+from tls_migration.rollback import run_rollback
+from tls_migration.audit import read_log
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +104,14 @@ def root():
 @app.get("/tls", include_in_schema=False)
 def tls_ui():
     page = os.path.join(_here, "static", "tls.html")
+    if os.path.exists(page):
+        return FileResponse(page)
+    return RedirectResponse("/docs")
+
+
+@app.get("/alb", include_in_schema=False)
+def alb_ui():
+    page = os.path.join(_here, "static", "alb.html")
     if os.path.exists(page):
         return FileResponse(page)
     return RedirectResponse("/docs")
@@ -270,6 +283,20 @@ def get_aws_keys():
 def get_aws_cbom():
     """CycloneDX CBOM for all AWS crypto assets."""
     return convert_aws_to_cbom(scan_acm_certificates(), scan_kms_keys())
+
+
+@app.get("/aws/alb-listeners", tags=["aws"])
+def get_alb_listeners(region: str = "us-east-1"):
+    """Discover all ALB/NLB HTTPS/TLS listeners and classify their PQC readiness."""
+    assets = discover_alb_listeners(region=region)
+    return {"region": region, "count": len(assets), "listeners": [a.to_dict() for a in assets]}
+
+
+@app.get("/aws/alb-cbom", tags=["aws"])
+def get_alb_cbom(region: str = "us-east-1"):
+    """CycloneDX 1.6 CBOM for all ALB/NLB TLS listeners."""
+    assets = discover_alb_listeners(region=region)
+    return convert_alb_to_cbom(assets)
 
 
 # ==================================================================
@@ -584,6 +611,100 @@ def ssh_report(org_name: str = Query("Organisation")):
     filename = f"cryptiq_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+# ==================================================================
+# ALB TLS Migration endpoints
+# ==================================================================
+
+class ALBMigrateRequest(BaseModel):
+    listener_arn: str
+    tf_repo: str
+    gh_repo: str
+    gh_base_branch: str = "main"
+    dry_run: bool = True
+    allow_prod: bool = False
+    prod_token: Optional[str] = None
+
+
+@app.post("/migrate/alb-tls", tags=["migration"])
+def migrate_alb_tls(request: ALBMigrateRequest):
+    """
+    Discover an ALB listener and open a migration PR to a PQ TLS policy.
+
+    dry_run=true (default): returns diff + PR body preview without writing to GitHub.
+    dry_run=false: creates branch, commits change, opens PR. Returns PR URL.
+
+    Prod-tagged listeners are blocked unless allow_prod=true and prod_token matches.
+    """
+    # Discover the specific listener
+    region = request.listener_arn.split(":")[3] if ":" in request.listener_arn else "us-east-1"
+    all_assets = discover_alb_listeners(region=region)
+    asset = next((a for a in all_assets if a.listener_arn == request.listener_arn), None)
+
+    if not asset:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Listener {request.listener_arn} not found in region {region}.",
+        )
+
+    result = run_migration(
+        asset=asset,
+        tf_repo=request.tf_repo,
+        gh_repo=request.gh_repo,
+        gh_base_branch=request.gh_base_branch,
+        dry_run=request.dry_run,
+        allow_prod=request.allow_prod,
+        prod_token=request.prod_token,
+    )
+    return result.to_dict()
+
+
+@app.get("/audit-log", tags=["migration"])
+def get_audit_log(limit: int = 100):
+    """Return recent entries from the Cryptiq audit log."""
+    return {"entries": read_log(limit=limit)}
+
+
+class ALBRollbackRequest(BaseModel):
+    listener_arn: str
+    migration_pr_body: str
+    migration_pr_number: int
+    tf_file: str
+    gh_repo: str
+    gh_base_branch: str = "main"
+    dry_run: bool = True
+
+
+@app.post("/migrate/alb-tls/rollback", tags=["migration"])
+def rollback_alb_tls(request: ALBRollbackRequest):
+    """
+    Open a rollback PR that restores the ssl_policy to its pre-migration value.
+
+    The original policy is read from the migration PR body — never guessed.
+    dry_run=true (default): returns diff + PR body preview.
+    dry_run=false: opens the rollback PR.
+    """
+    region = request.listener_arn.split(":")[3] if ":" in request.listener_arn else "us-east-1"
+    all_assets = discover_alb_listeners(region=region)
+    asset = next((a for a in all_assets if a.listener_arn == request.listener_arn), None)
+
+    if not asset:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Listener {request.listener_arn} not found in region {region}.",
+        )
+
+    result = run_rollback(
+        asset=asset,
+        migration_pr_body=request.migration_pr_body,
+        migration_pr_number=request.migration_pr_number,
+        tf_file=request.tf_file,
+        gh_repo=request.gh_repo,
+        gh_base_branch=request.gh_base_branch,
+        dry_run=request.dry_run,
+    )
+    return result.to_dict()
 
 
 # ==================================================================

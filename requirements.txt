@@ -8,6 +8,7 @@ paramiko>=3.4.0
 cryptography>=42.0.0
 reportlab>=4.0.0
 aiofiles>=23.0.0
+PyGithub>=2.1.1
 python-multipart>=0.0.9
 # Optional: swap sqlite for PostgreSQL in production
 # psycopg2-binary>=2.9.9reportlab
