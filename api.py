@@ -56,6 +56,8 @@ from ssh_scanner.ssh_assets import (
 )
 from ssh_scanner.ssh_report import generate_report
 
+from ssh_migration.api import router as migration_router
+
 logger = logging.getLogger(__name__)
 
 # ── App ─────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ if os.path.isdir(_static):
 def startup():
     create_tables(get_engine())
 
+# Mount SSH migration router
+app.include_router(migration_router)
+
 
 # ==================================================================
 # Page routes
@@ -94,6 +99,14 @@ def root():
 @app.get("/tls", include_in_schema=False)
 def tls_ui():
     page = os.path.join(_here, "static", "tls.html")
+    if os.path.exists(page):
+        return FileResponse(page)
+    return RedirectResponse("/docs")
+
+
+@app.get("/migrate", include_in_schema=False)
+def migrate_ui():
+    page = os.path.join(_here, "static", "migration.html")
     if os.path.exists(page):
         return FileResponse(page)
     return RedirectResponse("/docs")
@@ -258,15 +271,7 @@ def get_aws_cbom():
     """CycloneDX CBOM for all AWS crypto assets."""
     return convert_aws_to_cbom(scan_acm_certificates(), scan_kms_keys())
 
-@app.get("/tls/cbom/{domain}", tags=["tls"])
-def get_tls_cbom(domain: str):
-    result = scan_domain(domain)
-    cbom = convert_to_cbom(result)
-    return JSONResponse(
-        content=cbom,
-        media_type="application/vnd.cyclonedx+json; version=1.6"
-    )
-    
+
 # ==================================================================
 # SSH Scanner endpoints
 # ==================================================================
@@ -475,16 +480,28 @@ def ssh_rescan(host: str, port: int = Query(22), timeout: float = Query(10.0)):
 
 @app.get("/ssh/cbom/{host}", tags=["ssh"])
 def ssh_cbom(host: str, port: int = Query(22)):
-    try:
-        result = scan_ssh(host, port)
-        risk = assess_risk_from_scan(result)
-        cbom = generate_ssh_cbom(result, risk)
-        return JSONResponse(
-            content=cbom,
-            media_type="application/vnd.cyclonedx+json; version=1.6"
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    from ssh_scanner.scan_ssh import SSHScanResult, SSHHostKey
+    from ssh_scanner.ssh_risk import assess_risk
+    db = next(get_db())
+    r = get_latest_scan(db, host=host, port=port)
+    if not r:
+        raise HTTPException(status_code=404, detail=f"No scan found for {host}:{port}")
+    scan_result = SSHScanResult(
+        host=r.host, port=r.port, ssh_version=r.ssh_version, ssh_protocol=r.ssh_protocol,
+        raw_banner=r.raw_banner,
+        host_keys=[SSHHostKey(algorithm=hk.algorithm, key_size=hk.key_size, fingerprint=hk.fingerprint) for hk in r.host_keys],
+        negotiated_kex=r.key_exchange, negotiated_cipher=r.cipher, negotiated_mac=r.mac,
+        server_kex_algorithms=r.algorithm_advertisement.kex_algorithms if r.algorithm_advertisement else [],
+        server_ciphers=r.algorithm_advertisement.ciphers if r.algorithm_advertisement else [],
+        server_macs=r.algorithm_advertisement.macs if r.algorithm_advertisement else [],
+        server_host_key_algorithms=r.algorithm_advertisement.host_key_algorithms if r.algorithm_advertisement else [],
+        server_compression=r.algorithm_advertisement.compression if r.algorithm_advertisement else [],
+        scan_success=r.scan_success,
+    )
+    risk = assess_risk(host=r.host, host_key_algorithm=r.host_key_algorithm, key_size=r.host_key_size,
+                       kex_algorithm=r.key_exchange, cipher=r.cipher, mac=r.mac)
+    cbom = generate_ssh_cbom(scan_result, risk)
+    return JSONResponse(content=cbom, media_type="application/vnd.cyclonedx+json; version=1.6")
 
 
 @app.get("/ssh/inventory", tags=["ssh"])
@@ -576,8 +593,9 @@ def ssh_report(org_name: str = Query("Organisation")):
 if __name__ == "__main__":
     import uvicorn
     print("\n  Cryptiq PQC Scanner")
-    print("  Home  →  http://localhost:8000")
-    print("  TLS   →  http://localhost:8000/tls")
-    print("  SSH   →  http://localhost:8000/ssh")
-    print("  Docs  →  http://localhost:8000/docs\n")
+    print("  Home      →  http://localhost:8000")
+    print("  TLS       →  http://localhost:8000/tls")
+    print("  SSH       →  http://localhost:8000/ssh")
+    print("  Migration →  http://localhost:8000/migrate")
+    print("  Docs      →  http://localhost:8000/docs\n")
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
