@@ -1,27 +1,13 @@
-# --- imports ---
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
-# create_engine: opens a connection to the database file
-# Column, Integer, String, Boolean, DateTime: define what type each field is
-
 from sqlalchemy.orm import declarative_base, sessionmaker
-# declarative_base: lets us define database tables as Python classes
-# sessionmaker: creates a tool for talking to the database (adding, querying, saving)
-
 from datetime import datetime
-# used to timestamp when a scan happened
 
-# --- table definition ---
 Base = declarative_base()
-# Base is the parent class every database table inherits from
 
 class ScanRecord(Base):
-    # this class represents one row in the 'scans' table
-    # each attribute below becomes a column in that table
     __tablename__ = 'scans'
     
-    id = Column(Integer, primary_key=True)
-    # primary_key=True means this uniquely identifies each row, auto-increments
-
     id = Column(Integer, primary_key=True)
     domain = Column(String)
     tls_version = Column(String)
@@ -30,10 +16,9 @@ class ScanRecord(Base):
     risk_level = Column(String)
     pqc_status = Column(String)
     scanned_at = Column(DateTime, default=datetime.utcnow)
-    # default=datetime.utcnow means this fills in automatically if not provided
 
     def __repr__(self):
-        return f"<ScanRecord domain={self.domain} risk={self.risk_level} pqc_status={self.pqc_status}>"
+        return f"<ScanRecord domain={self.domain} risk={self.risk_level}>"
 
     def to_dict(self):
         return {
@@ -46,9 +31,17 @@ class ScanRecord(Base):
             'pqc_status': self.pqc_status,
             'scanned_at': str(self.scanned_at)
         }
-    
-# --- database setup ---
-engine = create_engine('sqlite:///cryptiq.db')
+
+# use DATABASE_URL env var if set, otherwise fall back to local SQLite
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///cryptiq.db")
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
+
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
 # engine is the actual connection to the database file 'cryptiq.db'
     # this file gets created automatically the first time you run this
 

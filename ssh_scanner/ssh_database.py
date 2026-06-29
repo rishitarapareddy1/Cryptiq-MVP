@@ -49,7 +49,7 @@ from ssh_scanner.ssh_risk import SSHRiskAssessment
 
 DATABASE_URL = os.environ.get(
     "SSH_SCANNER_DATABASE_URL",
-    "sqlite:///./ssh_scanner.db",  # sane default for development
+    os.environ.get("DATABASE_URL", "sqlite:///./ssh_scanner.db")
 )
 
 
