@@ -32,6 +32,33 @@ class ScanRecord(Base):
             'scanned_at': str(self.scanned_at)
         }
 
+class Workspace(Base):
+    __tablename__ = 'workspaces'
+
+    id = Column(Integer, primary_key=True)
+    org_name = Column(String, nullable=False)
+    root_domain = Column(String)
+    aws_access_key = Column(String)
+    aws_secret_key = Column(String)
+    aws_region = Column(String, default='us-east-1')
+    github_org = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Workspace org_name={self.org_name} root_domain={self.root_domain}>"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'org_name': self.org_name,
+            'root_domain': self.root_domain,
+            'aws_region': self.aws_region,
+            'github_org': self.github_org,
+            'aws_connected': bool(self.aws_access_key),
+            'created_at': str(self.created_at)
+        }
+
+# engine and tables — must come after ALL model classes
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///cryptiq.db")
 
 if DATABASE_URL.startswith("sqlite"):
@@ -41,30 +68,3 @@ else:
 
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
-
-# --- test code, only runs if you execute this file directly ---
-if __name__ == '__main__':
-    session = Session()
-    # actually open a session using the factory above
-
-    scan_record = ScanRecord(
-        domain='example.com',
-        tls_version='TLS 1.2',
-        algorithm='RSA',
-        quantum_vulnerable=False,
-        risk_level='Low',
-        pqc_status='Unknown'
-    )
-    # this creates one row, but only in memory — not saved yet
-
-    session.add(scan_record)
-    # tells the session "I want to save this row"
-
-    session.commit()
-    # actually writes it to the database file
-
-    all_records = session.query(ScanRecord).all()
-    # .query(ScanRecord) asks "give me rows from the scans table"
-    # .all() means "give me every row, no filtering"
-
-    print(all_records)

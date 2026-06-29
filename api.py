@@ -63,6 +63,8 @@ from tls_migration.run import run_migration, PROD_CONFIRMATION_TOKEN
 from tls_migration.rollback import run_rollback
 from tls_migration.audit import read_log
 
+from database import Session as DBSession, ScanRecord, Workspace
+
 logger = logging.getLogger(__name__)
 
 # ── App ─────────────────────────────────────────────────────────
@@ -196,7 +198,7 @@ def discover_and_scan(request: DiscoverRequest):
     session = DBSession()
     results = []
     try:
-        for domain in domains[:50]:  # cap at 50 to avoid timeout
+        for domain in domains:  # cap at 50 to avoid timeout
             try:
                 result = scan_domain(domain)
                 results.append(result)
@@ -298,6 +300,100 @@ def get_alb_cbom(region: str = "us-east-1"):
     assets = discover_alb_listeners(region=region)
     return convert_alb_to_cbom(assets)
 
+class WorkspaceCreateRequest(BaseModel):
+    org_name: str
+    root_domain: str
+    aws_region: str = 'us-east-1'
+    github_org: str = None
+
+class WorkspaceAWSRequest(BaseModel):
+    aws_access_key: str
+    aws_secret_key: str
+    aws_region: str = 'us-east-1'
+
+@app.post("/workspace", tags=["workspace"])
+def create_workspace(request: WorkspaceCreateRequest):
+    session = DBSession()
+    try:
+        workspace = Workspace(
+            org_name=request.org_name,
+            root_domain=request.root_domain,
+            aws_region=request.aws_region,
+            github_org=request.github_org,
+        )
+        session.add(workspace)
+        session.commit()
+        session.refresh(workspace)
+        return workspace.to_dict()
+    finally:
+        session.close()
+
+@app.get("/workspace/{workspace_id}", tags=["workspace"])
+def get_workspace(workspace_id: int):
+    session = DBSession()
+    try:
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        return workspace.to_dict()
+    finally:
+        session.close()
+
+@app.post("/workspace/{workspace_id}/connect/aws", tags=["workspace"])
+def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
+    session = DBSession()
+    try:
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        workspace.aws_access_key = request.aws_access_key
+        workspace.aws_secret_key = request.aws_secret_key
+        workspace.aws_region = request.aws_region
+        session.commit()
+        session.refresh(workspace)
+        return workspace.to_dict()
+    finally:
+        session.close()
+
+@app.get("/workspace/{workspace_id}/scan", tags=["workspace"])
+def workspace_scan(workspace_id: int):
+    session = DBSession()
+    try:
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        assets = discover_assets(workspace.root_domain, workspace.aws_region)
+        domains = assets['domains']
+        if not domains:
+            return {"domains_found": 0, "results": [], "cbom": None}
+        results = []
+        for domain in domains:
+            try:
+                result = scan_domain(domain)
+                results.append(result)
+                session.add(ScanRecord(
+                    domain=result["domain"],
+                    tls_version=result["tls_version"],
+                    algorithm=result["algorithm"],
+                    quantum_vulnerable=result["quantum_vulnerable"],
+                    risk_level=result["risk_level"],
+                    pqc_status=result["pqc_status"],
+                ))
+            except Exception:
+                pass
+        session.commit()
+        cbom = convert_to_cbom(results)
+        return {
+            "workspace_id": workspace_id,
+            "org_name": workspace.org_name,
+            "domains_found": len(domains),
+            "domains_scanned": len(results),
+            "ec2_hosts": assets['hosts'],
+            "results": results,
+            "cbom": cbom
+        }
+    finally:
+        session.close()
 
 # ==================================================================
 # SSH Scanner endpoints
