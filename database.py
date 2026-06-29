@@ -32,7 +32,6 @@ class ScanRecord(Base):
             'scanned_at': str(self.scanned_at)
         }
 
-# use DATABASE_URL env var if set, otherwise fall back to local SQLite
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///cryptiq.db")
 
 if DATABASE_URL.startswith("sqlite"):
@@ -42,16 +41,6 @@ else:
 
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
-# engine is the actual connection to the database file 'cryptiq.db'
-    # this file gets created automatically the first time you run this
-
-Base.metadata.create_all(engine)
-# this looks at every class that inherits from Base (just ScanRecord right now)
-# and creates the actual table in the database file if it doesn't exist yet
-
-Session = sessionmaker(bind=engine)
-# Session is a factory — every time you call Session() it gives you
-# a fresh connection you can use to add/query/save data
 
 # --- test code, only runs if you execute this file directly ---
 if __name__ == '__main__':
