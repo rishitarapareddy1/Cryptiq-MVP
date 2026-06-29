@@ -65,6 +65,7 @@ from tls_migration.audit import read_log
 
 from database import Session as DBSession, ScanRecord, Workspace
 
+
 logger = logging.getLogger(__name__)
 
 # ── App ─────────────────────────────────────────────────────────
@@ -339,6 +340,8 @@ def get_workspace(workspace_id: int):
     finally:
         session.close()
 
+from database import encrypt_value, decrypt_value
+
 @app.post("/workspace/{workspace_id}/connect/aws", tags=["workspace"])
 def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
     session = DBSession()
@@ -346,8 +349,8 @@ def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
         if not workspace:
             raise HTTPException(status_code=404, detail="Workspace not found")
-        workspace.aws_access_key = request.aws_access_key
-        workspace.aws_secret_key = request.aws_secret_key
+        workspace.aws_access_key = encrypt_value(request.aws_access_key)
+        workspace.aws_secret_key = encrypt_value(request.aws_secret_key)
         workspace.aws_region = request.aws_region
         session.commit()
         session.refresh(workspace)

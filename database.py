@@ -2,6 +2,21 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
+from cryptography.fernet import Fernet
+
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
+
+def encrypt_value(value: str) -> str:
+    if not value or not ENCRYPTION_KEY:
+        return value
+    f = Fernet(ENCRYPTION_KEY.encode())
+    return f.encrypt(value.encode()).decode()
+
+def decrypt_value(value: str) -> str:
+    if not value or not ENCRYPTION_KEY:
+        return value
+    f = Fernet(ENCRYPTION_KEY.encode())
+    return f.decrypt(value.encode()).decode()
 
 Base = declarative_base()
 
