@@ -59,6 +59,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.background import BackgroundTasks
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -507,7 +508,49 @@ def workspace_results(workspace_id: int):
     finally:
         session.close()
 
-
+@app.get("/workspace/{workspace_id}/cbom", tags=["workspace"])
+def workspace_cbom(workspace_id: int):
+    session = DBSession()
+    try:
+        scans = session.query(ScanRecord).filter(
+            ScanRecord.workspace_id == workspace_id
+        ).order_by(ScanRecord.scanned_at.desc()).all()
+        if not scans:
+            raise HTTPException(status_code=404, detail="No scans found for this workspace")
+        
+        import uuid
+        from datetime import datetime, timezone
+        bom = {
+            'bomFormat': 'CycloneDX',
+            'specVersion': '1.6',
+            'serialNumber': str(uuid.uuid4()),
+            'version': 1,
+            'metadata': {
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'component': {'type': 'application', 'name': 'Cryptiq PQC Scanner'}
+            },
+            'components': []
+        }
+        for s in scans:
+            bom['components'].append({
+                'type': 'cryptographic-asset',
+                'name': f"{s.domain} TLS Certificate",
+                'cryptoProperties': {
+                    'assetType': 'certificate',
+                    'algorithmProperties': {'primitive': 'keyagree'},
+                    'nistQuantumSecurityLevel': 0 if s.quantum_vulnerable else 3,
+                },
+                'properties': [
+                    {'name': 'quantum_vulnerable', 'value': str(s.quantum_vulnerable).lower()},
+                    {'name': 'risk_level', 'value': s.risk_level},
+                    {'name': 'pqc_status', 'value': s.pqc_status},
+                    {'name': 'algorithm', 'value': s.algorithm or 'Unknown'},
+                ]
+            })
+        return JSONResponse(content=bom, media_type="application/vnd.cyclonedx+json; version=1.6")
+    finally:
+        session.close()
+        
 # ==================================================================
 # SSH Scanner endpoints
 # ==================================================================
