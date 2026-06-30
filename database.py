@@ -24,6 +24,7 @@ class ScanRecord(Base):
     __tablename__ = 'scans'
     
     id = Column(Integer, primary_key=True)
+    workspace_id = Column(Integer, nullable=True)  # add this
     domain = Column(String)
     tls_version = Column(String)
     algorithm = Column(String)

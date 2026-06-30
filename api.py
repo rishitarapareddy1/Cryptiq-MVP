@@ -375,6 +375,7 @@ def workspace_scan(workspace_id: int):
                 result = scan_domain(domain)
                 results.append(result)
                 session.add(ScanRecord(
+                    workspace_id=workspace_id,  # add this
                     domain=result["domain"],
                     tls_version=result["tls_version"],
                     algorithm=result["algorithm"],
