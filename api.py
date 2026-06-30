@@ -3,6 +3,10 @@ api.py  (root)
 --------------
 Unified Cryptiq API — serves all scanners and migration tools from one FastAPI app.
 
+This is a pure JSON API backend, designed to be consumed by the Next.js
+frontend in /frontend. There is no server-rendered HTML here — the UI
+lives entirely in the Next.js app.
+
 Two product surfaces live here:
   1. Single-shot tools (no workspace needed): TLS scan, SSH scan, SSH migration.
      Use these directly — POST /scan, POST /ssh/scan, etc.
@@ -11,12 +15,6 @@ Two product surfaces live here:
      real GitHub PRs. Use these via POST /workspace and friends.
 
 Routes:
-  /               → landing page
-  /tls            → TLS scanner UI
-  /ssh            → SSH scanner UI
-  /alb            → ALB PQC migration dashboard
-  /migrate        → SSH migration UI
-
   TLS endpoints (from tls_scanner/):
     POST /scan, /scan/bulk, /discover, /discover/scan
     GET  /scans, /scans/{domain}
@@ -57,8 +55,8 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
-from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
 from fastapi.background import BackgroundTasks
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -117,11 +115,18 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# ── Static files ─────────────────────────────────────────────────
-_here = os.path.dirname(os.path.abspath(__file__))
-_static = os.path.join(_here, "static")
-if os.path.isdir(_static):
-    app.mount("/static", StaticFiles(directory=_static), name="static")
+# Allow the Next.js frontend during development.
+# Tighten this list in production to your deployed frontend URL(s).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ── Initialise SSH DB tables on startup ─────────────────────────
 @app.on_event("startup")
@@ -130,45 +135,6 @@ def startup():
 
 # Mount SSH migration router
 app.include_router(migration_router)
-
-
-# ==================================================================
-# Page routes
-# ==================================================================
-
-def _serve_or_docs(filename: str):
-    page = os.path.join(_here, "static", filename)
-    if os.path.exists(page):
-        return FileResponse(page)
-    return RedirectResponse("/docs")
-
-
-@app.get("/", include_in_schema=False)
-def root():
-    index = os.path.join(_here, "static", "index.html")
-    if os.path.exists(index):
-        return FileResponse(index)
-    return JSONResponse({"message": "Cryptiq API", "docs": "/docs"})
-
-
-@app.get("/tls", include_in_schema=False)
-def tls_ui():
-    return _serve_or_docs("tls.html")
-
-
-@app.get("/alb", include_in_schema=False)
-def alb_ui():
-    return _serve_or_docs("alb.html")
-
-
-@app.get("/migrate", include_in_schema=False)
-def migrate_ui():
-    return _serve_or_docs("migration.html")
-
-
-@app.get("/ssh", include_in_schema=False)
-def ssh_ui():
-    return _serve_or_docs("ssh.html")
 
 
 @app.get("/health", tags=["meta"])
@@ -973,11 +939,8 @@ def rollback_alb_tls(request: ALBRollbackRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n  Cryptiq PQC Platform")
-    print("  Home      →  http://127.0.0.1:8000")
-    print("  TLS       →  http://127.0.0.1:8000/tls")
-    print("  SSH       →  http://127.0.0.1:8000/ssh")
-    print("  ALB       →  http://127.0.0.1:8000/alb")
-    print("  Migration →  http://127.0.0.1:8000/migrate")
-    print("  Docs      →  http://127.0.0.1:8000/docs\n")
+    print("\n🚀 Cryptiq FastAPI Backend")
+    print("API Docs  → http://127.0.0.1:8000/docs")
+    print("Health    → http://127.0.0.1:8000/health")
+    print("Frontend  → http://localhost:3000\n")
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

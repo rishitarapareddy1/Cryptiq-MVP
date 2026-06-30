@@ -122,3 +122,16 @@ audit.log
 ssh_host_*_key
 ssh_host_*_key.pub
 cryptiq-migration*
+
+# ── Node / Next.js (frontend/) ─────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.*.local
+frontend/next-env.d.ts
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.vercel/
+frontend/*.tsbuildinfo
