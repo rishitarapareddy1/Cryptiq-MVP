@@ -1,26 +1,52 @@
 """
 api.py  (root)
 --------------
-Unified Cryptiq API — serves all scanners from a single FastAPI app.
+Unified Cryptiq API — serves all scanners and migration tools from one FastAPI app.
+
+Two product surfaces live here:
+  1. Single-shot tools (no workspace needed): TLS scan, SSH scan, SSH migration.
+     Use these directly — POST /scan, POST /ssh/scan, etc.
+  2. Workspace-based tools (multi-tenant): create a Workspace, connect AWS,
+     run background discovery+scan jobs, track ALB TLS migrations with
+     real GitHub PRs. Use these via POST /workspace and friends.
 
 Routes:
   /               → landing page
   /tls            → TLS scanner UI
-  /ssh            → SSH scanner UI (mounted sub-app)
+  /ssh            → SSH scanner UI
+  /alb            → ALB PQC migration dashboard
+  /migrate        → SSH migration UI
 
   TLS endpoints (from tls_scanner/):
-    POST /scan
-    POST /scan/bulk
-    GET  /scans
-    GET  /scans/{domain}
-    GET  /aws/certificates
-    GET  /aws/keys
-    GET  /aws/cbom
-    GET  /health
-    GET  /docs  (Swagger)
+    POST /scan, /scan/bulk, /discover, /discover/scan
+    GET  /scans, /scans/{domain}
+    GET  /aws/certificates, /aws/keys, /aws/cbom
+    GET  /aws/alb-listeners, /aws/alb-cbom
 
   SSH endpoints (from ssh_scanner/):
-    All mounted under /ssh/... — served by ssh_scanner/api.py sub-application
+    All mounted under /ssh/...
+
+  SSH migration endpoints (from ssh_migration/):
+    All mounted under /migrate/ssh/...
+
+  ALB TLS migration endpoints (from tls_migration/):
+    POST /migrate/alb-tls            — propose a migration PR (dry_run default)
+    POST /migrate/alb-tls/rollback   — propose a rollback PR
+    GET  /audit-log                  — append-only record of all migration actions
+
+  Workspace endpoints (multi-tenant, from database.py):
+    POST /workspace                              — create a workspace
+    GET  /workspace/{id}                         — get workspace
+    POST /workspace/{id}/connect/aws             — store encrypted AWS creds
+    POST /workspace/{id}/scan                    — start background discovery+scan
+    GET  /workspace/{id}/scan/{job_id}/status    — poll job status
+    GET  /workspace/{id}/results                 — get all scan results for workspace
+
+SAFETY INVARIANT (see CLAUDE.md):
+  The ALB migration endpoints (/migrate/alb-tls*) NEVER mutate AWS resources
+  and NEVER merge GitHub PRs. They only read AWS state (discovery) and
+  propose changes via GitHub pull requests. A human merges. This is enforced
+  in tls_migration/github_pr.py — see that module's chokepoint design.
 """
 
 from __future__ import annotations
@@ -30,22 +56,35 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-# ── TLS scanner imports ─────────────────────────────────────────
+# ── Database (TLS scans, workspaces, async jobs) ────────────────────────────
+from database import (
+    Session as DBSession, ScanRecord, Workspace, ScanJob,
+    encrypt_value, decrypt_value,
+)
+
+# ── TLS scanner ──────────────────────────────────────────────────────────
 from tls_scanner.scan_tls import scan_domain, convert_to_cbom
 from tls_scanner.scan_aws import scan_acm_certificates, scan_kms_keys, convert_aws_to_cbom
 from tls_scanner.scan_alb import discover_alb_listeners
-from tls_migration.alb_cbom import convert_alb_to_cbom
-from database import Session as DBSession, ScanRecord
 
-# ── SSH scanner imports ─────────────────────────────────────────
+# ── Domain/asset auto-discovery (CT logs, Route53, EC2) ─────────────────────
+from discovery import discover_assets
+
+# ── TLS/ALB migration (propose-only — see tls_migration/github_pr.py) ──────
+from tls_migration.alb_cbom import convert_alb_to_cbom
+from tls_migration.run import run_migration, PROD_CONFIRMATION_TOKEN
+from tls_migration.rollback import run_rollback
+from tls_migration.audit import read_log
+
+# ── SSH scanner ──────────────────────────────────────────────────────────
 from ssh_scanner.scan_ssh import scan_ssh, scan_ssh_bulk
-from ssh_scanner.ssh_risk import assess_risk_from_scan, summarise_risk_assessments
+from ssh_scanner.ssh_risk import assess_risk_from_scan, summarise_risk_assessments, assess_risk
 from ssh_scanner.ssh_cbom import generate_ssh_cbom
 from ssh_scanner.ssh_database import (
     save_scan, get_scan_history, get_latest_scan,
@@ -58,24 +97,21 @@ from ssh_scanner.ssh_assets import (
 )
 from ssh_scanner.ssh_report import generate_report
 
+# ── SSH migration router (mounted as a sub-router) ──────────────────────────
 from ssh_migration.api import router as migration_router
-from tls_migration.run import run_migration, PROD_CONFIRMATION_TOKEN
-from tls_migration.rollback import run_rollback
-from tls_migration.audit import read_log
-
-from database import Session as DBSession, ScanRecord, Workspace, ScanJob
-from fastapi import BackgroundTasks
-from datetime import datetime
-
-
 
 logger = logging.getLogger(__name__)
 
+# Silence paramiko's internal thread exceptions — expected when the scanner
+# probes host key types the server doesn't support. Handled gracefully;
+# the log noise is just confusing.
+logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)
+
 # ── App ─────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Cryptiq PQC Scanner",
-    description="Post-quantum cryptography readiness platform. TLS, SSH, AWS crypto asset discovery.",
-    version="1.0.0",
+    title="Cryptiq PQC Platform",
+    description="Post-quantum cryptography readiness platform. TLS, SSH, AWS, and ALB crypto asset discovery and migration.",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -99,6 +135,13 @@ app.include_router(migration_router)
 # Page routes
 # ==================================================================
 
+def _serve_or_docs(filename: str):
+    page = os.path.join(_here, "static", filename)
+    if os.path.exists(page):
+        return FileResponse(page)
+    return RedirectResponse("/docs")
+
+
 @app.get("/", include_in_schema=False)
 def root():
     index = os.path.join(_here, "static", "index.html")
@@ -109,34 +152,27 @@ def root():
 
 @app.get("/tls", include_in_schema=False)
 def tls_ui():
-    page = os.path.join(_here, "static", "tls.html")
-    if os.path.exists(page):
-        return FileResponse(page)
-    return RedirectResponse("/docs")
+    return _serve_or_docs("tls.html")
 
 
 @app.get("/alb", include_in_schema=False)
 def alb_ui():
-    page = os.path.join(_here, "static", "alb.html")
-    if os.path.exists(page):
-        return FileResponse(page)
-    return RedirectResponse("/docs")
+    return _serve_or_docs("alb.html")
 
 
 @app.get("/migrate", include_in_schema=False)
 def migrate_ui():
-    page = os.path.join(_here, "static", "migration.html")
-    if os.path.exists(page):
-        return FileResponse(page)
-    return RedirectResponse("/docs")
+    return _serve_or_docs("migration.html")
 
 
 @app.get("/ssh", include_in_schema=False)
 def ssh_ui():
-    page = os.path.join(_here, "static", "ssh.html")
-    if os.path.exists(page):
-        return FileResponse(page)
-    return RedirectResponse("/docs")
+    return _serve_or_docs("ssh.html")
+
+
+@app.get("/health", tags=["meta"])
+def health():
+    return {"status": "ok", "service": "cryptiq", "version": "1.1.0"}
 
 
 # ==================================================================
@@ -150,10 +186,11 @@ class BulkScanRequest(BaseModel):
     domains: list[str]
 
 
-def _save_tls_scan(result: dict) -> None:
+def _save_tls_scan(result: dict, workspace_id: Optional[int] = None) -> None:
     session = DBSession()
     try:
         record = ScanRecord(
+            workspace_id=workspace_id,
             domain=result["domain"],
             tls_version=result["tls_version"],
             algorithm=result["algorithm"],
@@ -167,11 +204,6 @@ def _save_tls_scan(result: dict) -> None:
         session.close()
 
 
-@app.get("/health", tags=["meta"])
-def health():
-    return {"status": "ok", "service": "cryptiq", "version": "1.0.0"}
-
-
 @app.post("/scan", tags=["tls"])
 def scan(request: ScanRequest):
     """Scan a single HTTPS domain for TLS crypto assets."""
@@ -179,30 +211,32 @@ def scan(request: ScanRequest):
     cbom = convert_to_cbom(result)
     _save_tls_scan(result)
     return {"result": result, "cbom": cbom}
-from discovery import discover_assets
+
 
 class DiscoverRequest(BaseModel):
     root_domain: str
-    region: str = 'us-east-1'
+    region: str = "us-east-1"
+
 
 @app.post("/discover", tags=["discovery"])
 def discover(request: DiscoverRequest):
-    """Auto-discover all domains and hosts for a root domain."""
+    """Auto-discover all domains and hosts for a root domain (CT logs + Route53 + EC2)."""
     assets = discover_assets(request.root_domain, request.region)
     return assets
+
 
 @app.post("/discover/scan", tags=["discovery"])
 def discover_and_scan(request: DiscoverRequest):
     """Discover all domains then immediately bulk scan them."""
     assets = discover_assets(request.root_domain, request.region)
-    domains = assets['domains']
+    domains = assets["domains"]
     if not domains:
         return {"domains_found": 0, "results": [], "cbom": None}
-    # bulk scan all discovered domains
+
     session = DBSession()
     results = []
     try:
-        for domain in domains:  # cap at 50 to avoid timeout
+        for domain in domains:
             try:
                 result = scan_domain(domain)
                 results.append(result)
@@ -215,18 +249,20 @@ def discover_and_scan(request: DiscoverRequest):
                     pqc_status=result["pqc_status"],
                 ))
             except Exception:
-                pass  # skip domains that fail
+                pass  # skip domains that fail to connect
         session.commit()
     finally:
         session.close()
+
     cbom = convert_to_cbom(results)
     return {
         "domains_found": len(domains),
         "domains_scanned": len(results),
-        "ec2_hosts": assets['hosts'],
+        "ec2_hosts": assets["hosts"],
         "results": results,
-        "cbom": cbom
+        "cbom": cbom,
     }
+
 
 @app.post("/scan/bulk", tags=["tls"])
 def bulk_scan(request: BulkScanRequest):
@@ -293,7 +329,10 @@ def get_aws_cbom():
 
 @app.get("/aws/alb-listeners", tags=["aws"])
 def get_alb_listeners(region: str = "us-east-1"):
-    """Discover all ALB/NLB HTTPS/TLS listeners and classify their PQC readiness."""
+    """
+    Discover all ALB/NLB HTTPS/TLS listeners and classify PQC readiness.
+    READ-ONLY — uses only Describe* operations. See iam/discovery-readonly.json.
+    """
     assets = discover_alb_listeners(region=region)
     return {"region": region, "count": len(assets), "listeners": [a.to_dict() for a in assets]}
 
@@ -304,16 +343,23 @@ def get_alb_cbom(region: str = "us-east-1"):
     assets = discover_alb_listeners(region=region)
     return convert_alb_to_cbom(assets)
 
+
+# ==================================================================
+# Workspace endpoints (multi-tenant)
+# ==================================================================
+
 class WorkspaceCreateRequest(BaseModel):
     org_name: str
     root_domain: str
-    aws_region: str = 'us-east-1'
-    github_org: str = None
+    aws_region: str = "us-east-1"
+    github_org: Optional[str] = None
+
 
 class WorkspaceAWSRequest(BaseModel):
     aws_access_key: str
     aws_secret_key: str
-    aws_region: str = 'us-east-1'
+    aws_region: str = "us-east-1"
+
 
 @app.post("/workspace", tags=["workspace"])
 def create_workspace(request: WorkspaceCreateRequest):
@@ -332,6 +378,7 @@ def create_workspace(request: WorkspaceCreateRequest):
     finally:
         session.close()
 
+
 @app.get("/workspace/{workspace_id}", tags=["workspace"])
 def get_workspace(workspace_id: int):
     session = DBSession()
@@ -343,10 +390,15 @@ def get_workspace(workspace_id: int):
     finally:
         session.close()
 
-from database import encrypt_value, decrypt_value
 
 @app.post("/workspace/{workspace_id}/connect/aws", tags=["workspace"])
 def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
+    """
+    Store AWS credentials for this workspace, encrypted at rest (Fernet).
+
+    Set the ENCRYPTION_KEY environment variable in production — without it,
+    credentials are stored in PLAINTEXT (see database.py for details).
+    """
     session = DBSession()
     try:
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
@@ -361,20 +413,18 @@ def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
     finally:
         session.close()
 
-from fastapi import BackgroundTasks
-from datetime import datetime
 
 def run_workspace_scan(workspace_id: int, job_id: int):
+    """Background task: discover + scan all domains for a workspace."""
     session = DBSession()
     try:
-        # update job to running
         job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
-        job.status = 'running'
+        job.status = "running"
         session.commit()
 
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
-        assets = discover_assets(workspace.root_domain, workspace.aws_region or 'us-east-1')
-        domains = assets['domains']
+        assets = discover_assets(workspace.root_domain, workspace.aws_region or "us-east-1")
+        domains = assets["domains"]
 
         job.domains_found = len(domains)
         session.commit()
@@ -396,23 +446,25 @@ def run_workspace_scan(workspace_id: int, job_id: int):
                 job.domains_scanned = len(results)
                 session.commit()
             except Exception:
-                pass
+                pass  # skip domains that fail to connect
 
-        job.status = 'complete'
+        job.status = "complete"
         job.completed_at = datetime.utcnow()
         session.commit()
 
     except Exception as e:
         job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
         if job:
-            job.status = 'failed'
+            job.status = "failed"
             job.error = str(e)
             session.commit()
     finally:
         session.close()
 
+
 @app.post("/workspace/{workspace_id}/scan", tags=["workspace"])
 def workspace_scan(workspace_id: int, background_tasks: BackgroundTasks):
+    """Start a background discovery+scan job for this workspace. Poll status via the returned job_id."""
     session = DBSession()
     try:
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
@@ -427,21 +479,22 @@ def workspace_scan(workspace_id: int, background_tasks: BackgroundTasks):
         session.close()
 
     background_tasks.add_task(run_workspace_scan, workspace_id, job_id)
-    return {"job_id": job_id, "status": "pending", "message": "Scan started — poll /workspace/{id}/scan/{job_id}/status for progress"}
+    return {"job_id": job_id, "status": "pending", "message": f"Scan started — poll /workspace/{workspace_id}/scan/{job_id}/status for progress"}
+
 
 @app.get("/workspace/{workspace_id}/scan/{job_id}/status", tags=["workspace"])
 def scan_status(workspace_id: int, job_id: int):
     session = DBSession()
     try:
         job = session.query(ScanJob).filter(
-            ScanJob.id == job_id,
-            ScanJob.workspace_id == workspace_id
+            ScanJob.id == job_id, ScanJob.workspace_id == workspace_id
         ).first()
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return job.to_dict()
     finally:
         session.close()
+
 
 @app.get("/workspace/{workspace_id}/results", tags=["workspace"])
 def workspace_results(workspace_id: int):
@@ -454,48 +507,7 @@ def workspace_results(workspace_id: int):
     finally:
         session.close()
 
-@app.get("/workspace/{workspace_id}/cbom", tags=["workspace"])
-def workspace_cbom(workspace_id: int):
-    session = DBSession()
-    try:
-        scans = session.query(ScanRecord).filter(
-            ScanRecord.workspace_id == workspace_id
-        ).order_by(ScanRecord.scanned_at.desc()).all()
-        if not scans:
-            raise HTTPException(status_code=404, detail="No scans found for this workspace")
-        
-        import uuid
-        from datetime import datetime, timezone
-        bom = {
-            'bomFormat': 'CycloneDX',
-            'specVersion': '1.6',
-            'serialNumber': str(uuid.uuid4()),
-            'version': 1,
-            'metadata': {
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'component': {'type': 'application', 'name': 'Cryptiq PQC Scanner'}
-            },
-            'components': []
-        }
-        for s in scans:
-            bom['components'].append({
-                'type': 'cryptographic-asset',
-                'name': f"{s.domain} TLS Certificate",
-                'cryptoProperties': {
-                    'assetType': 'certificate',
-                    'algorithmProperties': {'primitive': 'keyagree'},
-                    'nistQuantumSecurityLevel': 0 if s.quantum_vulnerable else 3,
-                },
-                'properties': [
-                    {'name': 'quantum_vulnerable', 'value': str(s.quantum_vulnerable).lower()},
-                    {'name': 'risk_level', 'value': s.risk_level},
-                    {'name': 'pqc_status', 'value': s.pqc_status},
-                    {'name': 'algorithm', 'value': s.algorithm or 'Unknown'},
-                ]
-            })
-        return JSONResponse(content=bom, media_type="application/vnd.cyclonedx+json; version=1.6")
-    finally:
-        session.close()
+
 # ==================================================================
 # SSH Scanner endpoints
 # ==================================================================
@@ -554,11 +566,16 @@ def _ssh_result_to_dict(scan_result, risk, db_record=None):
         "server_macs": scan_result.server_macs,
         "server_host_key_algorithms": scan_result.server_host_key_algorithms,
         "server_compression": scan_result.server_compression,
+        "software_info": getattr(scan_result, "software_info", None),
+        "capability_gap": getattr(scan_result, "capability_gap", None),
         "quantum_vulnerable": risk.quantum_vulnerable,
         "risk_level": risk.risk_level,
         "pqc_status": risk.pqc_status,
         "migration_priority": risk.migration_priority,
         "findings": risk.findings,
+        "weighted_score": getattr(risk, "weighted_score", None),
+        "score_breakdown": getattr(risk, "score_breakdown", None),
+        "recommendations": [r.to_dict() for r in getattr(risk, "recommendations", [])],
         "scan_success": scan_result.scan_success,
         "scan_error": scan_result.scan_error,
         "scanned_at": db_record.scanned_at.isoformat() if db_record and db_record.scanned_at else None,
@@ -607,6 +624,7 @@ def ssh_scan_bulk(request: SSHBulkScanRequest):
         "results": output,
         "summary": summarise_risk_assessments(risks),
         "total_succeeded": sum(1 for r in results if r.scan_success),
+        "total_requested": len(unique),
     }
 
 
@@ -705,7 +723,6 @@ def ssh_rescan(host: str, port: int = Query(22), timeout: float = Query(10.0)):
 @app.get("/ssh/cbom/{host}", tags=["ssh"])
 def ssh_cbom(host: str, port: int = Query(22)):
     from ssh_scanner.scan_ssh import SSHScanResult, SSHHostKey
-    from ssh_scanner.ssh_risk import assess_risk
     db = next(get_db())
     r = get_latest_scan(db, host=host, port=port)
     if not r:
@@ -811,7 +828,7 @@ def ssh_report(org_name: str = Query("Organisation")):
 
 
 # ==================================================================
-# ALB TLS Migration endpoints
+# ALB TLS Migration endpoints (propose-only — see CLAUDE.md)
 # ==================================================================
 
 class ALBMigrateRequest(BaseModel):
@@ -832,9 +849,12 @@ def migrate_alb_tls(request: ALBMigrateRequest):
     dry_run=true (default): returns diff + PR body preview without writing to GitHub.
     dry_run=false: creates branch, commits change, opens PR. Returns PR URL.
 
+    SAFETY: this endpoint NEVER merges the PR and NEVER mutates the AWS
+    listener directly — it only reads AWS state and proposes a Terraform
+    diff via a GitHub pull request. A human merges. See CLAUDE.md.
+
     Prod-tagged listeners are blocked unless allow_prod=true and prod_token matches.
     """
-    # Discover the specific listener
     region = request.listener_arn.split(":")[3] if ":" in request.listener_arn else "us-east-1"
     all_assets = discover_alb_listeners(region=region)
     asset = next((a for a in all_assets if a.listener_arn == request.listener_arn), None)
@@ -859,7 +879,7 @@ def migrate_alb_tls(request: ALBMigrateRequest):
 
 @app.get("/audit-log", tags=["migration"])
 def get_audit_log(limit: int = 100):
-    """Return recent entries from the Cryptiq audit log."""
+    """Return recent entries from the Cryptiq audit log (append-only, never modified)."""
     return {"entries": read_log(limit=limit)}
 
 
@@ -910,10 +930,11 @@ def rollback_alb_tls(request: ALBRollbackRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n  Cryptiq PQC Scanner")
-    print("  Home      →  http://localhost:8000")
-    print("  TLS       →  http://localhost:8000/tls")
-    print("  SSH       →  http://localhost:8000/ssh")
-    print("  Migration →  http://localhost:8000/migrate")
-    print("  Docs      →  http://localhost:8000/docs\n")
+    print("\n  Cryptiq PQC Platform")
+    print("  Home      →  http://127.0.0.1:8000")
+    print("  TLS       →  http://127.0.0.1:8000/tls")
+    print("  SSH       →  http://127.0.0.1:8000/ssh")
+    print("  ALB       →  http://127.0.0.1:8000/alb")
+    print("  Migration →  http://127.0.0.1:8000/migrate")
+    print("  Docs      →  http://127.0.0.1:8000/docs\n")
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
