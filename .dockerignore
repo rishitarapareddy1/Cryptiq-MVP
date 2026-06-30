@@ -1,0 +1,63 @@
+# ── Cryptiq .dockerignore ─────────────────────────────────────────────────
+# Keeps the build context small and fast
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments — never copy into image
+venv/
+.venv/
+env/
+.env/
+
+# Databases — these live in the /app/data volume, not the image
+*.db
+*.sqlite
+*.sqlite3
+
+# Scan outputs — not part of the app
+scan_results_*.json
+cbom_*.json
+cryptiq_report_*.pdf
+
+# Tests — don't need in production image
+tests/
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+.dockerignore
