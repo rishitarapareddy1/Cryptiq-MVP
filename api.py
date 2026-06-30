@@ -121,6 +121,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "https://cryptiq-frontend-whyk.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
