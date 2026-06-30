@@ -517,6 +517,87 @@ def workspace_cbom(workspace_id: int):
         return JSONResponse(content=bom, media_type="application/vnd.cyclonedx+json; version=1.6")
     finally:
         session.close()
+
+
+@app.post("/workspace/{workspace_id}/scan/ssh", tags=["workspace"])
+def workspace_ssh_scan(workspace_id: int, background_tasks: BackgroundTasks):
+    """Start a background SSH scan job for all EC2 hosts in this workspace."""
+    session = DBSession()
+    try:
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        job = ScanJob(workspace_id=workspace_id, status="pending")
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+    finally:
+        session.close()
+
+    background_tasks.add_task(run_workspace_ssh_scan, workspace_id, job_id)
+    return {"job_id": job_id, "status": "pending", "message": f"SSH scan started — poll /workspace/{workspace_id}/scan/{job_id}/status"}
+
+
+def run_workspace_ssh_scan(workspace_id: int, job_id: int):
+    """Background task: discover EC2 hosts and SSH scan them."""
+    session = DBSession()
+    try:
+        job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
+        job.status = "running"
+        session.commit()
+
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        assets = discover_assets(workspace.root_domain, workspace.aws_region or "us-east-1")
+        hosts = assets.get("hosts", [])
+
+        job.domains_found = len(hosts)
+        session.commit()
+
+        if not hosts:
+            job.status = "complete"
+            job.completed_at = datetime.utcnow()
+            session.commit()
+            return
+
+        scan_results = scan_ssh_bulk(hosts, 22, 10.0, 20)
+        db = next(get_db())
+        scanned = 0
+        for r in scan_results:
+            try:
+                risk = assess_risk_from_scan(r)
+                record = save_scan(db, r, risk)
+                # tag with workspace_id
+                record.workspace_id = workspace_id
+                db.commit()
+                scanned += 1
+                job.domains_scanned = scanned
+                session.commit()
+            except Exception:
+                pass
+
+        job.status = "complete"
+        job.completed_at = datetime.utcnow()
+        session.commit()
+
+    except Exception as e:
+        job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
+        if job:
+            job.status = "failed"
+            job.error = str(e)
+            session.commit()
+    finally:
+        session.close()
+
+
+@app.get("/workspace/{workspace_id}/ssh/results", tags=["workspace"])
+def workspace_ssh_results(workspace_id: int):
+    db = next(get_db())
+    from ssh_scanner.ssh_database import SSHScanRecord
+    records = db.query(SSHScanRecord).filter(
+        SSHScanRecord.workspace_id == workspace_id
+    ).order_by(SSHScanRecord.scanned_at.desc()).all()
+    return {"results": [_db_record_to_dict(r) for r in records]}
         
 # ==================================================================
 # SSH Scanner endpoints

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Topbar from "@/components/Topbar";
 import { useToast } from "@/components/Toast";
-import { RiskBadge, QuantumVuln } from "@/components/Badges";
+import { QuantumVuln } from "@/components/Badges";
 
 type Workspace = {
   id: number;
@@ -30,6 +30,13 @@ type JobStatus = {
 
 const CIRC = 2 * Math.PI * 60;
 
+const headlines: Record<string, string> = {
+  pending: "Waiting to start",
+  running: "Scanning your attack surface",
+  complete: "Scan complete",
+  failed: "Scan hit a snag",
+};
+
 export default function WorkspacePage() {
   const { toast, Toast } = useToast();
   const [ws, setWs] = useState<Workspace | null>(null);
@@ -48,7 +55,25 @@ export default function WorkspacePage() {
   const [results, setResults] = useState<ScanResult[]>([]);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => () => { if (pollTimer.current) clearInterval(pollTimer.current); }, []);
+  const [sshScanning, setSshScanning] = useState(false);
+  const [sshJob, setSshJob] = useState<JobStatus | null>(null);
+  const [sshResults, setSshResults] = useState<any[]>([]);
+  const sshPollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const found = job?.domains_found || 0;
+  const scanned = job?.domains_scanned || 0;
+  const dialOffset = CIRC - (found > 0 ? Math.min(scanned / found, 1) : 0) * CIRC;
+
+  const sshFound = sshJob?.domains_found || 0;
+  const sshScanned = sshJob?.domains_scanned || 0;
+  const sshDialOffset = CIRC - (sshFound > 0 ? Math.min(sshScanned / sshFound, 1) : 0) * CIRC;
+
+  useEffect(() => {
+    return () => {
+      if (pollTimer.current) clearInterval(pollTimer.current);
+      if (sshPollTimer.current) clearInterval(sshPollTimer.current);
+    };
+  }, []);
 
   async function createWorkspace() {
     if (!orgName.trim() || !rootDomain.trim()) { toast("Enter both organisation name and root domain", "error"); return; }
@@ -77,6 +102,7 @@ export default function WorkspacePage() {
       const data = await res.json();
       setWs(data);
       loadResults(data.id);
+      loadSSHResults(data.id);
     } catch (e: any) {
       toast("Failed: " + e.message, "error");
     }
@@ -153,6 +179,56 @@ export default function WorkspacePage() {
     }
   }
 
+  async function startSSHScan() {
+    if (!ws) { toast("Open a workspace first", "error"); return; }
+    setSshScanning(true);
+    try {
+      const res = await fetch(`/workspace/${ws.id}/scan/ssh`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSshJob({ status: "pending" });
+      toast("SSH scan started", "success");
+      pollSSHStatus(ws.id, data.job_id);
+    } catch (e: any) {
+      toast("Failed: " + e.message, "error");
+    } finally {
+      setSshScanning(false);
+    }
+  }
+
+  function pollSSHStatus(wsId: number, jobId: number) {
+    if (sshPollTimer.current) clearInterval(sshPollTimer.current);
+    const tick = async () => {
+      try {
+        const res = await fetch(`/workspace/${wsId}/scan/${jobId}/status`);
+        if (!res.ok) return;
+        const j: JobStatus = await res.json();
+        setSshJob(j);
+        loadSSHResults(wsId);
+        if (j.status === "complete" || j.status === "failed") {
+          if (sshPollTimer.current) clearInterval(sshPollTimer.current);
+          if (j.status === "complete") toast("SSH scan complete", "success");
+          if (j.status === "failed") toast("SSH scan failed: " + (j.error || "unknown error"), "error");
+        }
+      } catch {}
+    };
+    tick();
+    sshPollTimer.current = setInterval(tick, 5000);
+  }
+
+  async function loadSSHResults(wsId?: number) {
+    const id = wsId ?? ws?.id;
+    if (!id) return;
+    try {
+      const res = await fetch(`/workspace/${id}/ssh/results`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSshResults(data.results || []);
+    } catch (e: any) {
+      toast("Failed to load SSH results: " + e.message, "error");
+    }
+  }
+
   async function downloadCBOM() {
     if (!ws) { toast("Open a workspace first", "error"); return; }
     try {
@@ -168,15 +244,6 @@ export default function WorkspacePage() {
       toast("Failed: " + e.message, "error");
     }
   }
-
-  const found = job?.domains_found || 0;
-  const scanned = job?.domains_scanned || 0;
-  const pct = found > 0 ? Math.min(scanned / found, 1) : 0;
-  const dialOffset = CIRC - pct * CIRC;
-  const headlines: Record<string, string> = {
-    pending: "Waiting to start", running: "Scanning your attack surface",
-    complete: "Scan complete", failed: "Scan hit a snag",
-  };
 
   return (
     <>
@@ -223,6 +290,7 @@ export default function WorkspacePage() {
               </span>
             </div>
 
+            {/* AWS Connect */}
             <div className="card">
               <div className="card-title">Connect AWS</div>
               <div className="card-sub">Cryptiq reads ACM certificates, KMS keys, Route53 records, and EC2 hosts — read-only, nothing is ever modified. Keys are encrypted at rest and never appear in logs.</div>
@@ -236,15 +304,29 @@ export default function WorkspacePage() {
                 <div className="field"><label>Secret access key</label><input type="password" value={awsSecret} onChange={(e) => setAwsSecret(e.target.value)} placeholder="••••••••••••••••" /></div>
                 <div className="field" style={{ maxWidth: 150 }}><label>Region</label><input type="text" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" /></div>
               </div>
-              <div className="btn-row">
+              <div className="btn-row" style={{ alignItems: "center", flexWrap: "wrap", gap: 14 }}>
                 <button className="btn btn-cyan" disabled={connecting} onClick={connectAWS}>
                   {connecting ? <span className="spinner" /> : null} Connect AWS account
                 </button>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  fontFamily: "var(--mono)", fontSize: 11.5,
+                  color: "var(--teal-bright, #28a48f)",
+                  background: "var(--teal-glow, #dcf3ee)",
+                  padding: "6px 13px", borderRadius: 20,
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  AES-256 encrypted at rest · never logged
+                </div>
               </div>
             </div>
 
+            {/* TLS Scan */}
             <div className="card">
-              <div className="card-title">Run a scan</div>
+              <div className="card-title">Run a TLS scan</div>
               <div className="card-sub">Discovers every subdomain from certificate transparency logs, then checks each one&apos;s TLS posture. Runs in the background — close the tab if you want, the dial will be waiting when you&apos;re back.</div>
               <div className="btn-row">
                 <button className="btn btn-primary" disabled={scanning} onClick={startScan}>
@@ -281,7 +363,7 @@ export default function WorkspacePage() {
             <hr className="divider" />
 
             <div className="register-head">
-              <div className="register-title">Findings</div>
+              <div className="register-title">TLS Findings</div>
               <div className="register-meta">{results.length} record{results.length === 1 ? "" : "s"}</div>
             </div>
 
@@ -289,7 +371,7 @@ export default function WorkspacePage() {
               <div className="empty">
                 <div className="empty-icon">◐</div>
                 <div className="empty-title">Nothing here yet</div>
-                <div className="empty-sub">Run a scan above and findings will land in this table.</div>
+                <div className="empty-sub">Run a TLS scan above and findings will land in this table.</div>
               </div>
             ) : (
               <div className="table-wrap">
@@ -304,6 +386,98 @@ export default function WorkspacePage() {
                         <td><QuantumVuln vuln={r.quantum_vulnerable} /></td>
                         <td><span className={`risk-pill risk-${r.risk_level}`}>{r.risk_level || "—"}</span></td>
                         <td style={{ color: "var(--ink-faint)", fontSize: 11 }}>{r.scanned_at ? new Date(r.scanned_at).toLocaleTimeString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* SSH Scan */}
+            <hr className="divider" />
+
+            <div className="card">
+              <div className="card-title">Scan SSH hosts</div>
+              <div className="card-sub">
+                Discovers EC2 hosts from your connected AWS account and scans each one for
+                SSH cryptographic posture — host keys, key exchange algorithms, ciphers, and PQC readiness.
+              </div>
+              <div className="btn-row">
+                <button className="btn btn-primary" disabled={sshScanning} onClick={startSSHScan}>
+                  {sshScanning ? <span className="spinner" /> : null} Scan SSH hosts →
+                </button>
+                <button className="btn btn-ghost" onClick={() => loadSSHResults()}>Refresh</button>
+              </div>
+            </div>
+
+            {sshJob && (
+              <div className="dial-wrap">
+                <div className="dial">
+                  <svg width="140" height="140" viewBox="0 0 140 140">
+                    <circle className="dial-track" cx="70" cy="70" r="60" />
+                    <circle
+                      className={`dial-fill${sshJob.status === "complete" ? " done" : ""}`}
+                      cx="70" cy="70" r="60"
+                      style={{ strokeDashoffset: sshDialOffset }}
+                    />
+                  </svg>
+                  <div className="dial-center">
+                    <div className="dial-num">{sshScanned}</div>
+                    <div className="dial-den">of {sshFound}</div>
+                  </div>
+                </div>
+                <div className="dial-info">
+                  <div className={`dial-status ${sshJob.status}`}>
+                    {sshJob.status === "running" && <span className="pip-live" />}
+                    <span>{sshJob.status}</span>
+                  </div>
+                  <div className="dial-headline">{headlines[sshJob.status]}</div>
+                  <div className="dial-sub">
+                    {sshFound ? `${sshScanned} of ${sshFound} hosts scanned` : "discovering hosts…"}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <hr className="divider" />
+
+            <div className="register-head">
+              <div className="register-title">SSH Findings</div>
+              <div className="register-meta">{sshResults.length} host{sshResults.length === 1 ? "" : "s"}</div>
+            </div>
+
+            {!sshResults.length ? (
+              <div className="empty">
+                <div className="empty-icon">◐</div>
+                <div className="empty-title">No SSH findings yet</div>
+                <div className="empty-sub">Scan SSH hosts above to populate this table.</div>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table className="register">
+                  <thead>
+                    <tr>
+                      <th>Host</th>
+                      <th>SSH version</th>
+                      <th>Host key</th>
+                      <th>KEX</th>
+                      <th>Quantum vuln</th>
+                      <th>Risk</th>
+                      <th>Scanned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sshResults.map((r: any, i: number) => (
+                      <tr key={i}>
+                        <td className="domain-cell">{r.host}:{r.port}</td>
+                        <td>{r.ssh_version || "—"}</td>
+                        <td>{r.host_key_algorithm || "—"}</td>
+                        <td>{r.key_exchange || "—"}</td>
+                        <td><QuantumVuln vuln={r.quantum_vulnerable} /></td>
+                        <td><span className={`risk-pill risk-${r.risk_level}`}>{r.risk_level || "—"}</span></td>
+                        <td style={{ color: "var(--ink-faint)", fontSize: 11 }}>
+                          {r.scanned_at ? new Date(r.scanned_at).toLocaleTimeString() : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
