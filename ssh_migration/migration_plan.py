@@ -26,7 +26,7 @@ from typing import Optional
 from ssh_migration.algorithms import check_compatibility
 from ssh_migration.config_hardener import (
     analyse_from_scan, generate_patch,
-    analysis_summary, patch_summary,
+    analysis_summary, get_recommended_kex,
 )
 
 
@@ -202,9 +202,9 @@ def build_migration_plan(
             chosen_algos.extend(v if isinstance(v, list) else [v])
     plan.compatibility_issues = check_compatibility(chosen_algos, ssh_version or "")
 
-    # Config patch
+    # Config patch — generate_patch now returns a dict directly
     ta = target_algorithms or {}
-    patch = generate_patch(
+    patch_dict = generate_patch(
         analysis,
         target_kex=ta.get("kex"),
         target_ciphers=ta.get("ciphers"),
@@ -212,7 +212,7 @@ def build_migration_plan(
         add_host_key_types=ta.get("host_key"),
         conservative=conservative,
     )
-    plan.config_patch = patch_summary(patch)
+    plan.config_patch = patch_dict
 
     # ── Phase 1: Immediate (0–30 days) ──────────────────────────────────────
     phase1 = MigrationPhase(
@@ -224,7 +224,7 @@ def build_migration_plan(
 
     # Action: harden sshd_config
     if analysis.issue_count > 0:
-        cmds = patch.apply_commands
+        cmds = patch_dict.get("apply_commands", [])
         phase1.actions.append(MigrationAction(
             id=str(uuid.uuid4()),
             phase=1,
@@ -242,12 +242,12 @@ def build_migration_plan(
             automated=True,
             requires_downtime=False,  # reload, not restart
             commands=cmds,
-            rollback_commands=patch.rollback_commands,
+            rollback_commands=patch_dict.get("rollback_commands", []),
             params={
                 "weak_kex_removed": analysis.weak_kex,
                 "weak_ciphers_removed": analysis.weak_ciphers,
                 "weak_macs_removed": analysis.weak_macs,
-                "target_kex": patch.changes[0]["after"].split(",") if patch.changes else [],
+                "target_kex": patch_dict.get("changes", [{}])[0].get("new", "").split(",") if patch_dict.get("changes") else [],
             },
         ))
 
@@ -263,8 +263,8 @@ def build_migration_plan(
         estimated_minutes=5,
         automated=True,
         requires_downtime=False,
-        commands=patch.validate_commands,
-        rollback_commands=patch.rollback_commands,
+        commands=patch_dict.get("validate_commands", []),
+        rollback_commands=patch_dict.get("rollback_commands", []),
     ))
 
     plan.phases.append(phase1)
