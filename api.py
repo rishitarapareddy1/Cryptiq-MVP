@@ -63,7 +63,10 @@ from tls_migration.run import run_migration, PROD_CONFIRMATION_TOKEN
 from tls_migration.rollback import run_rollback
 from tls_migration.audit import read_log
 
-from database import Session as DBSession, ScanRecord, Workspace
+from database import Session as DBSession, ScanRecord, Workspace, ScanJob
+from fastapi import BackgroundTasks
+from datetime import datetime
+
 
 
 logger = logging.getLogger(__name__)
@@ -358,24 +361,31 @@ def connect_aws(workspace_id: int, request: WorkspaceAWSRequest):
     finally:
         session.close()
 
-@app.get("/workspace/{workspace_id}/scan", tags=["workspace"])
-def workspace_scan(workspace_id: int):
+from fastapi import BackgroundTasks
+from datetime import datetime
+
+def run_workspace_scan(workspace_id: int, job_id: int):
     session = DBSession()
     try:
+        # update job to running
+        job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
+        job.status = 'running'
+        session.commit()
+
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
-        if not workspace:
-            raise HTTPException(status_code=404, detail="Workspace not found")
-        assets = discover_assets(workspace.root_domain, workspace.aws_region)
+        assets = discover_assets(workspace.root_domain, workspace.aws_region or 'us-east-1')
         domains = assets['domains']
-        if not domains:
-            return {"domains_found": 0, "results": [], "cbom": None}
+
+        job.domains_found = len(domains)
+        session.commit()
+
         results = []
         for domain in domains:
             try:
                 result = scan_domain(domain)
                 results.append(result)
                 session.add(ScanRecord(
-                    workspace_id=workspace_id,  # add this
+                    workspace_id=workspace_id,
                     domain=result["domain"],
                     tls_version=result["tls_version"],
                     algorithm=result["algorithm"],
@@ -383,22 +393,66 @@ def workspace_scan(workspace_id: int):
                     risk_level=result["risk_level"],
                     pqc_status=result["pqc_status"],
                 ))
+                job.domains_scanned = len(results)
+                session.commit()
             except Exception:
                 pass
+
+        job.status = 'complete'
+        job.completed_at = datetime.utcnow()
         session.commit()
-        cbom = convert_to_cbom(results)
-        return {
-            "workspace_id": workspace_id,
-            "org_name": workspace.org_name,
-            "domains_found": len(domains),
-            "domains_scanned": len(results),
-            "ec2_hosts": assets['hosts'],
-            "results": results,
-            "cbom": cbom
-        }
+
+    except Exception as e:
+        job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
+        if job:
+            job.status = 'failed'
+            job.error = str(e)
+            session.commit()
     finally:
         session.close()
 
+@app.post("/workspace/{workspace_id}/scan", tags=["workspace"])
+def workspace_scan(workspace_id: int, background_tasks: BackgroundTasks):
+    session = DBSession()
+    try:
+        workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        job = ScanJob(workspace_id=workspace_id, status="pending")
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+    finally:
+        session.close()
+
+    background_tasks.add_task(run_workspace_scan, workspace_id, job_id)
+    return {"job_id": job_id, "status": "pending", "message": "Scan started — poll /workspace/{id}/scan/{job_id}/status for progress"}
+
+@app.get("/workspace/{workspace_id}/scan/{job_id}/status", tags=["workspace"])
+def scan_status(workspace_id: int, job_id: int):
+    session = DBSession()
+    try:
+        job = session.query(ScanJob).filter(
+            ScanJob.id == job_id,
+            ScanJob.workspace_id == workspace_id
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return job.to_dict()
+    finally:
+        session.close()
+
+@app.get("/workspace/{workspace_id}/results", tags=["workspace"])
+def workspace_results(workspace_id: int):
+    session = DBSession()
+    try:
+        scans = session.query(ScanRecord).filter(
+            ScanRecord.workspace_id == workspace_id
+        ).order_by(ScanRecord.scanned_at.desc()).all()
+        return {"results": [s.to_dict() for s in scans]}
+    finally:
+        session.close()
 # ==================================================================
 # SSH Scanner endpoints
 # ==================================================================

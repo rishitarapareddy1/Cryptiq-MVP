@@ -73,7 +73,29 @@ class Workspace(Base):
             'aws_connected': bool(self.aws_access_key),
             'created_at': str(self.created_at)
         }
+class ScanJob(Base):
+    __tablename__ = 'scan_jobs'
 
+    id = Column(Integer, primary_key=True)
+    workspace_id = Column(Integer, nullable=False)
+    status = Column(String, default='pending')  # pending, running, complete, failed
+    domains_found = Column(Integer, default=0)
+    domains_scanned = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    error = Column(String, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'workspace_id': self.workspace_id,
+            'status': self.status,
+            'domains_found': self.domains_found,
+            'domains_scanned': self.domains_scanned,
+            'created_at': str(self.created_at),
+            'completed_at': str(self.completed_at) if self.completed_at else None,
+            'error': self.error
+        }
 # engine and tables — must come after ALL model classes
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///cryptiq.db")
 
