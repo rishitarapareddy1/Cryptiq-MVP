@@ -7,7 +7,7 @@ import uuid
 
 def is_quantum_vulnerable(algorithm):
     # return True if algorithm is quantum vulnerable
-    if algorithm in ['RSA', 'ECDSA', 'ECDH', 'DH', 'ECC']:
+    if algorithm in ['RSA', 'ECDSA', 'ECDH', 'DH', 'ECC', 'X25519', 'Ed25519']:
         return True
     else:
         return False
