@@ -1,244 +1,256 @@
-# Cryptiq — PQC Readiness Platform
+# Cryptiq — PQC Readiness & Migration Platform
 
-Cryptiq discovers every cryptographic asset in your infrastructure, scores its post-quantum risk, and produces a prioritised migration roadmap. Built for security consultants and engineering teams preparing for the post-quantum transition.
+Cryptiq discovers cryptographic assets across TLS, AWS, and SSH infrastructure,
+scores post-quantum risk, and migrates them — either by proposing a reviewable
+pull request (cloud/ALB) or by executing safety-railed changes directly (SSH).
+
+**Live:** https://cryptiq-krh9.onrender.com
+
+---
+
+## Two migration models — read this first
+
+Cryptiq has two distinct trust models depending on the asset type. See
+`CLAUDE.md` for the full rationale; this is the short version.
+
+| | Cloud / ALB TLS | SSH |
+|---|---|---|
+| Discovery | Read-only AWS API calls | Raw socket KEX_INIT read (no auth needed) |
+| Migration | **Proposes** a GitHub PR with a Terraform diff | **Executes** directly via SSH, with validation + auto-rollback |
+| Who applies the change | A human, by merging the PR | Cryptiq, after `sshd -t` validates the config |
+| Why the difference | Cryptiq never holds cloud write credentials | The operator explicitly grants SSH credentials for this purpose |
+
+---
+
+## What it does
+
+```
+Discover → Classify → Inventory → Plan → Migrate → Report
+```
+
+1. **Discover** — TLS endpoints, SSH hosts (single host or CIDR ranges), AWS ACM/KMS, AWS ALB/NLB listeners, and auto-discovered subdomains via CT logs
+2. **Classify** — every cryptographic primitive scored against NIST PQC standards (FIPS 203/204/205), with version-aware capability analysis (does this OpenSSH version even support the recommended algorithm?)
+3. **Inventory** — CycloneDX 1.6 CBOM for TLS, AWS, and SSH assets
+4. **Plan** — phased migration plans with concrete commands (SSH) or Terraform diffs (ALB)
+5. **Migrate** — SSH: generate keys, harden sshd_config, execute remotely with rollback. ALB: open a GitHub PR proposing the policy change
+6. **Report** — consulting-grade PDF reports; append-only audit log for every migration action
+
+---
+
+## Project structure
 
 ```
 Cryptiq-MVP/
-├── api.py                  # Unified API — runs everything on :8000
-├── database.py             # TLS scan SQLite ORM
-├── requirements.txt        # Root dependencies
-├── .gitignore
+├── api.py                      # Unified FastAPI app — the only file you run
+├── database.py                 # TLS scans, multi-tenant Workspace/ScanJob models
+├── discovery.py                # CT log / Route53 / EC2 subdomain auto-discovery
+├── requirements.txt
+├── Dockerfile                  # Container image (arm64 + amd64)
+├── docker-compose.yml          # Local dev stack
+├── docker-compose.fleet.yml    # 4 SSH test containers (critical/high/medium/hybrid risk)
+├── Procfile                    # Render.com deployment
+├── CLAUDE.md                   # Standing rules for AI-assisted development — READ FIRST
+├── Build_runbook.md            # Historical design doc for the ALB slice (Node/TS plan —
+│                                # superseded by the Python implementation actually in tls_migration/)
+├── DEMO.md                     # End-to-end ALB migration demo script
+├── demo-reset.sh / .ps1        # Reset demo AWS infra to starting state
+│
+├── demo-infra/                 # Terraform: provisions a demo ALB on a classical TLS policy
+│   ├── main.tf, variables.tf, outputs.tf
+│
+├── iam/
+│   ├── discovery-readonly.json # Minimal IAM policy for AWS discovery (read-only)
+│   └── README.md               # Blast-radius statement
+│
 ├── static/
-│   ├── index.html          # Landing page  →  localhost:8000
-│   └── tls.html            # TLS scanner UI  →  localhost:8000/tls
+│   ├── index.html              # Landing page
+│   ├── tls.html                # TLS scanner UI
+│   ├── ssh.html                # SSH scanner UI
+│   ├── alb.html                # ALB PQC migration dashboard
+│   └── migration.html          # SSH migration UI
+│
 ├── tls_scanner/
-│   ├── __init__.py
-│   ├── scan_tls.py         # TLS domain scanner
-│   └── scan_aws.py         # AWS ACM + KMS scanner
-└── ssh_scanner/
-    ├── __init__.py
-    ├── scan_ssh.py         # SSH crypto discovery
-    ├── ssh_risk.py         # PQC risk classification
-    ├── ssh_cbom.py         # CycloneDX 1.6 CBOM generation
-    ├── ssh_database.py     # SSH scan ORM + persistence
-    ├── ssh_network.py      # Network-wide host discovery (CIDR)
-    ├── ssh_assets.py       # Asset metadata, tagging, trend snapshots
-    ├── ssh_report.py       # Consulting PDF report generator
-    ├── requirements.txt
-    └── static/
-        └── index.html      # SSH scanner UI  →  localhost:8000/ssh
+│   ├── scan_tls.py             # TLS domain scanner (openssl-based)
+│   ├── scan_aws.py             # AWS ACM + KMS scanner
+│   └── scan_alb.py             # ALB/NLB listener discovery (read-only)
+│
+├── tls_migration/               # ALB TLS migration — PROPOSE ONLY, see CLAUDE.md
+│   ├── types.py                 # Shared types (TlsListenerAsset, etc.)
+│   ├── alb_plan.py              # Computes the Terraform diff (no file writes)
+│   ├── alb_cbom.py               # CycloneDX CBOM for ALB assets
+│   ├── github_pr.py             # PR chokepoint — branch/commit/PR only, never merge
+│   ├── run.py                   # Composes discovery → plan → PR
+│   ├── rollback.py               # Computes + opens the inverse PR
+│   └── audit.py                  # Append-only audit log reader/writer
+│
+├── ssh_scanner/
+│   ├── scan_ssh.py              # Raw KEX_INIT socket parser (no auth needed)
+│   ├── ssh_risk.py              # Weighted risk scoring + MigrationRecommendation objects
+│   ├── ssh_versions.py          # OpenSSH/Dropbear/Cisco version lifecycle + PQC capability
+│   ├── ssh_algorithms.py        # Algorithm family normalization (curve25519 variants → 1 family)
+│   ├── ssh_cbom.py               # CycloneDX 1.6 CBOM
+│   ├── ssh_database.py           # ORM: scans, host keys, advertisements, assets
+│   ├── ssh_network.py            # CIDR / IP range discovery
+│   ├── ssh_assets.py             # Asset tagging, trend snapshots
+│   └── ssh_report.py             # Consulting PDF generator
+│
+├── ssh_migration/                # SSH migration — DIRECT EXECUTION, see CLAUDE.md
+│   ├── algorithms.py              # PQC algorithm registry
+│   ├── keygen.py                  # Key generation — private keys never leave disk
+│   ├── config_hardener.py         # Surgical, version-aware sshd_config patching
+│   ├── migration_plan.py          # Phased plan builder
+│   ├── executor.py                # SSH execution: validate→backup→apply→verify→rollback
+│   ├── rollback.py                # Structured backup directories + RollbackManager
+│   └── api.py                     # Router mounted at /migrate/ssh/
+│
+└── tests/
+    └── test_cryptiq.py            # 116+ tests
 ```
 
 ---
 
-## Quick start
+## Quick start — local
 
 ```bash
-# 1. Clone and enter the repo
-git clone https://github.com/your-org/cryptiq-mvp.git
-cd cryptiq-mvp
+git clone <repo-url>
+cd Cryptiq-MVP
 
-# 2. Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
 pip install -r requirements.txt
 pip install -r ssh_scanner/requirements.txt
 
-# 4. Run
 python api.py
 ```
 
-Open **http://localhost:8000** — the landing page lets you navigate to each tool.
+Open **http://127.0.0.1:8000**
 
-| URL | What |
+| URL | Tool |
 |-----|------|
-| http://localhost:8000 | Home / landing page |
-| http://localhost:8000/tls | TLS scanner UI |
-| http://localhost:8000/ssh | SSH scanner UI |
-| http://localhost:8000/docs | Swagger API docs |
-
----
-
-## Tools
-
-### TLS Scanner
-Scan HTTPS endpoints for certificate algorithms, TLS version, key exchange, and quantum vulnerability. Also scans AWS ACM certificates and KMS keys.
-
-```bash
-curl -X POST http://localhost:8000/scan \
-  -H "Content-Type: application/json" \
-  -d '{"domain": "google.com"}'
-```
-
-### SSH Scanner
-Discover SSH hosts on a network. Extract host keys, KEX algorithms, ciphers, and MACs. Network-wide CIDR scanning, asset tagging, and PDF report generation.
-
-```bash
-# Single host
-curl -X POST http://localhost:8000/ssh/scan \
-  -H "Content-Type: application/json" \
-  -d '{"host": "github.com"}'
-
-# Network discovery
-curl -X POST http://localhost:8000/ssh/discover \
-  -H "Content-Type: application/json" \
-  -d '{"target": "192.168.1.0/24", "auto_scan": true}'
-
-# Generate PDF report
-curl -X POST "http://localhost:8000/ssh/report?org_name=Acme+Corp" \
-  --output report.pdf
-```
-
----
-
-## API reference
-
-### TLS
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/scan` | Scan a single domain |
-| POST | `/scan/bulk` | Scan multiple domains |
-| GET | `/scans` | All TLS scan history |
-| GET | `/scans/{domain}` | History for a domain |
-| GET | `/aws/certificates` | AWS ACM certificates |
-| GET | `/aws/keys` | AWS KMS keys |
-| GET | `/aws/cbom` | CycloneDX CBOM for AWS assets |
-
-### SSH
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/ssh/scan` | Scan a single host |
-| POST | `/ssh/scan/bulk` | Scan up to 500 hosts |
-| POST | `/ssh/discover` | Network discovery (CIDR / IP range) |
-| GET | `/ssh/scans` | SSH scan history (filterable) |
-| GET | `/ssh/latest/{host}` | Latest scan for a host |
-| POST | `/ssh/rescan/{host}` | Force fresh scan |
-| GET | `/ssh/cbom/{host}` | CycloneDX 1.6 CBOM |
-| GET | `/ssh/inventory` | Fleet-wide inventory + readiness |
-| POST | `/ssh/assets/tag` | Tag asset with business context |
-| GET | `/ssh/assets/enriched` | Scan results + metadata joined |
-| POST | `/ssh/snapshot` | Save fleet posture snapshot |
-| GET | `/ssh/trend` | Historical snapshots for trend charts |
-| POST | `/ssh/report` | Generate consulting PDF report |
-
-### Meta
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/docs` | Swagger UI |
-
----
-
-## SSH data model
-
-### `ssh_scans`
-| Column | Description |
-|--------|-------------|
-| `host` | Hostname or IP |
-| `ssh_version` | e.g. `OpenSSH_9.7p1 Ubuntu-3` |
-| `host_key_algorithm` | Primary host key type |
-| `host_key_size` | Bits (null for Ed25519) |
-| `key_exchange` | Negotiated KEX |
-| `cipher` | Negotiated cipher |
-| `mac` | Negotiated MAC |
-| `quantum_vulnerable` | Shor-breakable |
-| `risk_level` | `critical\|high\|medium\|low\|unknown` |
-| `pqc_status` | `vulnerable\|hybrid\|pqc_ready\|unknown` |
-| `migration_priority` | `critical\|high\|normal\|low` |
-
-### `ssh_host_keys` — one row per advertised key type per scan
-Captures every key type a server offers, not just the negotiated one.
-
-### `ssh_algorithm_advertisements` — full KEX_INIT lists
-Every advertised algorithm stored as JSON for post-hoc inventory queries.
-
-### `ssh_asset_metadata` — business context per host
-Fields: `asset_name`, `asset_owner`, `environment`, `business_unit`, `location`, `can_upgrade`, `upgrade_blocker`, `remediation_status`, `tags`.
-
-### `ssh_fleet_snapshots` — point-in-time posture for trend tracking
-
----
-
-## Risk taxonomy
-
-### SSH host keys
-| Algorithm | Risk | Notes |
-|-----------|------|-------|
-| `ssh-rsa` < 2048-bit | critical | Classical AND quantum-broken |
-| `ssh-rsa` 2048+ | high | Harvest-now-decrypt-later |
-| `ecdsa-sha2-nistp*` | high | Shor-vulnerable |
-| `ssh-dss` | critical | DSA classically broken |
-| `ssh-ed25519` | medium | Not immediately Shor-vulnerable |
-| `ml-dsa-65` | low | NIST PQC (FIPS 204) |
-
-### SSH KEX
-| Algorithm | Risk | PQC status |
-|-----------|------|------------|
-| `diffie-hellman-group1-sha1` | critical | vulnerable |
-| `diffie-hellman-group14-sha1` | critical | vulnerable |
-| `diffie-hellman-group14-sha256` | high | vulnerable |
-| `ecdh-sha2-nistp*` | high | vulnerable |
-| `curve25519-sha256` | medium | vulnerable |
-| `sntrup761x25519-sha512` | low | hybrid |
-| `mlkem768x25519-sha256` | low | hybrid |
-| `mlkem768-sha256` | low | pqc_ready |
-
----
-
-## Network discovery
-
-`/ssh/discover` accepts:
-
-| Format | Example |
-|--------|---------|
-| CIDR | `192.168.1.0/24` |
-| IP range | `10.0.0.1-10.0.0.50` |
-| Comma-separated | `10.0.0.1,10.0.0.5` |
-| Hostname | `github.com` |
-
-Device type is classified from the SSH banner: OpenSSH → server, Dropbear → embedded, Cisco/MikroTik → router, Fortinet → firewall, QNAP/Synology → NAS, VMware → hypervisor.
+| http://127.0.0.1:8000 | Landing page |
+| http://127.0.0.1:8000/tls | TLS scanner |
+| http://127.0.0.1:8000/ssh | SSH scanner |
+| http://127.0.0.1:8000/alb | ALB PQC migration dashboard |
+| http://127.0.0.1:8000/migrate | SSH migration |
+| http://127.0.0.1:8000/docs | Swagger API |
 
 ---
 
 ## Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SSH_SCANNER_DATABASE_URL` | `sqlite:///./ssh_scanner/ssh_scanner.db` | SSH scan DB |
+| Variable | Default | Required for |
+|----------|---------|---------------|
+| `DATABASE_URL` | `sqlite:///cryptiq.db` | TLS scans, workspaces. Use `postgresql://...` in production |
+| `SSH_SCANNER_DATABASE_URL` | `sqlite:///./ssh_scanner.db` | SSH scan history |
+| `ENCRYPTION_KEY` | none | Encrypting workspace AWS credentials at rest. **Without this, credentials stored via `/workspace/{id}/connect/aws` are PLAINTEXT.** Generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `GITHUB_TOKEN` | none | Opening migration/rollback PRs (`tls_migration/github_pr.py`) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | none | ALB/ACM/KMS discovery if not using per-workspace credentials |
 
-For PostgreSQL:
+---
+
+## SSH migration — full local test (Docker fleet)
+
 ```bash
-export SSH_SCANNER_DATABASE_URL="postgresql://user:pass@localhost/cryptiq"
-pip install psycopg2-binary
+docker compose -f docker-compose.fleet.yml up -d
+sleep 60   # wait for apt-get inside containers
+
+# Scan the deliberately weak legacy container
+curl -s -X POST http://127.0.0.1:8000/ssh/scan \
+  -H "Content-Type: application/json" \
+  -d '{"host":"127.0.0.1","port":2222}' > /tmp/legacy_scan.json
+
+# Generate a version-aware migration plan
+python3 -c "
+import json, urllib.request
+scan = json.load(open('/tmp/legacy_scan.json'))
+req = urllib.request.Request('http://127.0.0.1:8000/migrate/ssh/plan',
+    data=json.dumps({'scan_result': scan}).encode(),
+    headers={'Content-Type':'application/json'})
+plan = json.loads(urllib.request.urlopen(req).read())
+json.dump(plan, open('/tmp/plan.json','w'))
+print(f'{plan[\"total_actions\"]} actions, risk={plan[\"scan_risk_level\"]}')
+"
 ```
+
+Full walkthrough including dry-run, live execution, and verification: see `TESTING.md`.
+
+---
+
+## ALB TLS migration — demo
+
+```bash
+cd demo-infra
+terraform init && terraform apply    # provisions a demo ALB on a classical TLS policy
+
+# Discover it
+curl http://127.0.0.1:8000/aws/alb-listeners?region=us-east-1
+
+# Propose a migration PR (dry run first)
+curl -X POST http://127.0.0.1:8000/migrate/alb-tls \
+  -H "Content-Type: application/json" \
+  -d '{"listener_arn":"<arn>","tf_repo":"/path/to/tf","gh_repo":"you/repo","dry_run":true}'
+```
+
+Full script: `DEMO.md`. Teardown: `./demo-reset.sh`.
+
+---
+
+## Run the test suite
+
+```bash
+pytest                  # all tests
+pytest -k "ssh"          # SSH only
+pytest -k "tls"          # TLS only
+pytest --cov=. --cov-report=html   # with coverage
+```
+
+---
+
+## Risk taxonomy (SSH)
+
+Weighted scoring: host_key 40%, KEX 40%, cipher 10%, MAC 10% — see `ssh_scanner/ssh_risk.py`.
+
+| Host key | Risk |
+|----------|------|
+| `ssh-rsa` < 2048-bit | critical |
+| `ssh-rsa` 2048+ | high |
+| `ecdsa-sha2-nistp*` | high |
+| `ssh-ed25519` | medium |
+| `ml-dsa-65` (FIPS 204) | low |
+
+| KEX | Risk | PQC status |
+|-----|------|-----------|
+| `diffie-hellman-group1-sha1` | critical | vulnerable |
+| `diffie-hellman-group14-sha256` | high | vulnerable |
+| `curve25519-sha256` | medium | vulnerable |
+| `sntrup761x25519-sha512` | low | hybrid |
+| `mlkem768x25519-sha256` | low | hybrid |
 
 ---
 
 ## Architecture
 
 ```
-Cryptiq-MVP/
-│
-├── api.py  (unified entry point)
-│     │
-│     ├── GET /          → static/index.html    (landing page)
-│     ├── GET /tls       → static/tls.html      (TLS scanner UI)
-│     ├── GET /ssh       → ssh_scanner/static/  (SSH scanner UI)
-│     │
-│     ├── POST /scan ...           TLS endpoints
-│     ├── GET  /aws/...            AWS endpoints
-│     └── POST /ssh/...            SSH endpoints
-│
-├── tls_scanner/   (scan_tls.py, scan_aws.py)
-├── ssh_scanner/   (scan_ssh, risk, cbom, db, network, assets, report)
-└── static/        (landing page + TLS UI)
+                         http://127.0.0.1:8000
+                                │
+                          api.py (FastAPI)
+                ┌───────────────┼────────────────────────┐
+                │               │                        │
+          Static UI       Single-shot tools        Workspace tools
+       (index/tls/ssh/    /scan /ssh/ /migrate/    /workspace/* (multi-tenant,
+        alb/migration)    /aws/                     background jobs, encrypted
+                                                      AWS creds)
+                │               │                        │
+      ┌─────────┴───┐    ┌──────┴───────┐         ┌──────┴──────┐
+ tls_scanner/   ssh_scanner/      ssh_migration/      tls_migration/
+ scan_tls.py    scan_ssh.py       config_hardener.py  alb_plan.py
+ scan_aws.py    ssh_risk.py       executor.py         github_pr.py
+ scan_alb.py    ssh_versions.py   keygen.py           run.py / rollback.py
+                ssh_algorithms.py rollback.py          audit.py
+                ssh_cbom.py
+                ssh_database.py
+                                       │
+                          SQLite / PostgreSQL
+                    (cryptiq.db, ssh_scanner.db)
 ```
-
-The product pipeline for each tool:
-```
-Discover → Extract crypto assets → Classify risk → CBOM → DB → Inventory → PDF report
-```
-
-Every scanned endpoint is a crypto asset. The inventory is the product.

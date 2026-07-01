@@ -49,7 +49,7 @@ from ssh_scanner.ssh_risk import SSHRiskAssessment
 
 DATABASE_URL = os.environ.get(
     "SSH_SCANNER_DATABASE_URL",
-    "sqlite:///./ssh_scanner.db",  # sane default for development
+    os.environ.get("DATABASE_URL", "sqlite:///./ssh_scanner.db")
 )
 
 
@@ -70,7 +70,7 @@ class SSHScanRecord(Base):
     __tablename__ = "ssh_scans"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-
+    workspace_id = Column(Integer, nullable=True, index=True)  # add this
     # Endpoint identity
     host = Column(String(255), nullable=False, index=True)
     port = Column(Integer, nullable=False, default=22)

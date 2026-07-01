@@ -22,6 +22,7 @@ from typing import Optional
 
 import paramiko
 from paramiko.transport import Transport
+from ssh_scanner.ssh_versions import parse_banner, analyse_capability_gap
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ class SSHScanResult:
     server_macs: list[str] = field(default_factory=list)
     server_host_key_algorithms: list[str] = field(default_factory=list)
     server_compression: list[str] = field(default_factory=list)
+
+    # Software version analysis
+    software_info: Optional[dict] = None       # SoftwareInfo.to_dict()
+    capability_gap: Optional[dict] = None      # analyse_capability_gap() result
 
     # Scan metadata
     scan_error: Optional[str] = None
@@ -162,6 +167,25 @@ def get_host_keys(host: str, port: int = 22, timeout: float = 10.0) -> list[SSHH
             sock = socket.create_connection((host, port), timeout=timeout)
             transport = Transport(sock)
             transport.local_version = "SSH-2.0-CryptiqScanner_1.0"
+            # Enable all legacy KEX/cipher so we can handshake with old servers
+            transport._preferred_kex = [
+                "diffie-hellman-group1-sha1",
+                "diffie-hellman-group14-sha1",
+                "diffie-hellman-group14-sha256",
+                "curve25519-sha256",
+                "curve25519-sha256@libssh.org",
+                "ecdh-sha2-nistp256",
+            ]
+            transport._preferred_ciphers = [
+                "aes128-ctr", "aes256-ctr", "aes128-cbc",
+                "aes256-cbc", "3des-cbc",
+                "aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
+                "chacha20-poly1305@openssh.com",
+            ]
+            transport._preferred_macs = [
+                "hmac-md5", "hmac-sha1",
+                "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
+            ]
             # Request a specific host key type
             transport._preferred_keys = [ktype]
             transport.start_client(timeout=timeout)
@@ -206,14 +230,19 @@ def get_server_algorithms(
     host: str, port: int = 22, timeout: float = 10.0
 ) -> dict:
     """
-    Perform an SSH handshake and capture the server's full algorithm lists
-    from the KEX_INIT message, plus what was actually negotiated.
+    Read the server's SSH KEX_INIT packet directly over a raw socket.
 
-    Returns dict with keys:
-        kex_algorithms, server_host_key_algorithms, ciphers_client_to_server,
-        ciphers_server_to_client, mac_algos_client_to_server,
-        mac_algos_server_to_client, compression_algorithms,
-        negotiated_kex, negotiated_cipher, negotiated_mac
+    The KEX_INIT is sent in PLAINTEXT before any encryption is negotiated
+    (RFC 4253 §7.1). This means we never need to complete the handshake —
+    we just need to:
+      1. Connect
+      2. Exchange banners (also plaintext)
+      3. Read the server's KEX_INIT binary packet
+      4. Parse the name-list fields
+
+    This approach is completely immune to algorithm incompatibility errors
+    because we never attempt to negotiate — we just read what the server
+    advertises and disconnect.
     """
     result = {
         "kex_algorithms": [],
@@ -226,70 +255,126 @@ def get_server_algorithms(
         "negotiated_mac": None,
     }
 
-    transport = None
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
-        transport = Transport(sock)
-        transport.local_version = "SSH-2.0-CryptiqScanner_1.0"
+        sock.settimeout(timeout)
 
-        # Monkey-patch _parse_kex_init to capture advertised lists before
-        # negotiation discards them.
-        _original_parse_kex = transport._parse_kex_init  # type: ignore[attr-defined]
-        captured: dict = {}
+        # ── Step 1: Read server banner ──────────────────────────────────
+        banner_buf = b""
+        while b"\n" not in banner_buf and len(banner_buf) < 512:
+            chunk = sock.recv(64)
+            if not chunk:
+                break
+            banner_buf += chunk
 
-        def _capturing_parse_kex_init(m):
-            # paramiko Message object; advance past cookie (16 bytes)
-            m.get_bytes(16)  # random cookie
-            captured["kex_algorithms"] = m.get_list()
-            captured["server_host_key_algorithms"] = m.get_list()
-            captured["ciphers_c2s"] = m.get_list()
-            captured["ciphers_s2c"] = m.get_list()
-            captured["macs_c2s"] = m.get_list()
-            captured["macs_s2c"] = m.get_list()
-            captured["compression_c2s"] = m.get_list()
-            captured["compression_s2c"] = m.get_list()
-            # rewind so paramiko can do its own parse
-            m.rewind()
-            _original_parse_kex(m)
+        # ── Step 2: Send our banner ─────────────────────────────────────
+        sock.sendall(b"SSH-2.0-CryptiqScanner_1.0\r\n")
 
-        transport._parse_kex_init = _capturing_parse_kex_init  # type: ignore[method-assign]
-        transport.start_client(timeout=timeout)
+        # ── Step 3: Read SSH binary packets until we get KEX_INIT (20) ──
+        # SSH binary packet format (RFC 4253 §6):
+        #   uint32   packet_length   (length of payload + padding, not including itself)
+        #   byte     padding_length
+        #   byte[n]  payload         (n = packet_length - padding_length - 1)
+        #   byte[m]  random padding  (m = padding_length)
+        # No MAC yet (not yet negotiated)
 
-        # Merge c2s / s2c lists (union — we care about what the server supports)
-        result["kex_algorithms"] = captured.get("kex_algorithms", [])
-        result["server_host_key_algorithms"] = captured.get("server_host_key_algorithms", [])
-        result["ciphers"] = list(dict.fromkeys(
-            captured.get("ciphers_c2s", []) + captured.get("ciphers_s2c", [])
-        ))
-        result["macs"] = list(dict.fromkeys(
-            captured.get("macs_c2s", []) + captured.get("macs_s2c", [])
-        ))
-        result["compression"] = list(dict.fromkeys(
-            captured.get("compression_c2s", []) + captured.get("compression_s2c", [])
-        ))
+        SSH_MSG_KEXINIT = 20
+        max_attempts = 5  # read up to 5 packets looking for KEX_INIT
 
-        # Negotiated values live on the transport after start_client
-        result["negotiated_kex"] = getattr(transport, "_agreed_kex_algo", None)  # type: ignore[attr-defined]
-        # paramiko stores the agreed cipher name on the _cipher_info dict key
-        if hasattr(transport, "local_cipher"):
-            result["negotiated_cipher"] = transport.local_cipher  # type: ignore[attr-defined]
-        result["negotiated_mac"] = getattr(transport, "local_mac", None)  # type: ignore[attr-defined]
+        for _ in range(max_attempts):
+            # Read 4-byte packet length
+            length_bytes = _recv_exact(sock, 4)
+            if not length_bytes or len(length_bytes) < 4:
+                break
+            packet_length = int.from_bytes(length_bytes, "big")
+
+            if packet_length > 65536 or packet_length < 2:
+                break  # sanity check
+
+            # Read rest of packet
+            rest = _recv_exact(sock, packet_length)
+            if not rest or len(rest) < packet_length:
+                break
+
+            padding_length = rest[0]
+            payload = rest[1: packet_length - padding_length]
+
+            if not payload:
+                continue
+
+            msg_type = payload[0]
+            if msg_type == SSH_MSG_KEXINIT:
+                # Parse KEX_INIT payload
+                # Skip: msg_type(1) + cookie(16) = 17 bytes
+                offset = 17
+                lists = []
+                for _ in range(10):  # 10 name-list fields in KEX_INIT
+                    if offset + 4 > len(payload):
+                        break
+                    list_len = int.from_bytes(payload[offset:offset+4], "big")
+                    offset += 4
+                    if offset + list_len > len(payload):
+                        break
+                    name_list_bytes = payload[offset:offset+list_len]
+                    offset += list_len
+                    names = [
+                        n.strip().decode("utf-8", errors="replace")
+                        for n in name_list_bytes.split(b",")
+                        if n.strip()
+                    ]
+                    lists.append(names)
+
+                if len(lists) >= 6:
+                    result["kex_algorithms"]              = lists[0]
+                    result["server_host_key_algorithms"]  = lists[1]
+                    # Merge client→server and server→client (union)
+                    result["ciphers"] = list(dict.fromkeys(lists[2] + lists[3]))
+                    result["macs"]    = list(dict.fromkeys(lists[4] + lists[5]))
+                if len(lists) >= 8:
+                    result["compression"] = list(dict.fromkeys(lists[6] + lists[7]))
+                break  # done
+
+        sock.close()
 
     except Exception as exc:
-        logger.debug("Algorithm extraction for %s:%d — %s", host, port, exc)
-    finally:
-        if transport:
-            try:
-                transport.close()
-            except Exception:
-                pass
+        logger.debug("Raw KEX_INIT read for %s:%d — %s", host, port, exc)
 
     return result
 
 
-# ---------------------------------------------------------------------------
-# Main scan entry point
-# ---------------------------------------------------------------------------
+def _recv_exact(sock: socket.socket, n: int) -> bytes:
+    """Read exactly n bytes from socket."""
+    buf = b""
+    while len(buf) < n:
+        try:
+            chunk = sock.recv(n - len(buf))
+        except Exception:
+            break
+        if not chunk:
+            break
+        buf += chunk
+    return buf
+
+
+def _estimate_key_size(algorithm: str) -> Optional[int]:
+    """
+    Estimate key size from algorithm name when we can't complete the handshake.
+    Returns None for fixed-size algorithms (Ed25519, Ed448).
+    """
+    a = algorithm.lower()
+    if "rsa" in a:
+        return None   # unknown without handshake — caller can leave as None
+    if "ecdsa" in a:
+        if "nistp256" in a:
+            return 256
+        if "nistp384" in a:
+            return 384
+        if "nistp521" in a:
+            return 521
+    # Ed25519, Ed448, DSA — fixed size, return None
+    return None
+
+
 
 def scan_ssh(host: str, port: int = 22, timeout: float = 10.0) -> SSHScanResult:
     """
@@ -312,14 +397,7 @@ def scan_ssh(host: str, port: int = 22, timeout: float = 10.0) -> SSHScanResult:
         result.scan_error = "Could not connect or read SSH banner"
         return result
 
-    # 2. Host keys
-    try:
-        result.host_keys = get_host_keys(host, port, timeout)
-    except Exception as exc:
-        logger.warning("Host key collection failed for %s:%d — %s", host, port, exc)
-        result.host_keys = []
-
-    # 3. Algorithm advertisement
+    # 2. Algorithm advertisement (raw socket — immune to algorithm incompatibility)
     try:
         algo_info = get_server_algorithms(host, port, timeout)
         result.server_kex_algorithms = algo_info["kex_algorithms"]
@@ -332,6 +410,46 @@ def scan_ssh(host: str, port: int = 22, timeout: float = 10.0) -> SSHScanResult:
         result.negotiated_mac = algo_info["negotiated_mac"]
     except Exception as exc:
         logger.warning("Algorithm extraction failed for %s:%d — %s", host, port, exc)
+
+    # 3. Host keys — try paramiko first, fall back to KEX_INIT advertised list
+    # Paramiko may fail on legacy servers (group1-sha1 not in _kex_info on
+    # Python 3.14 paramiko builds). If it fails, we synthesise SSHHostKey
+    # objects from the server_host_key_algorithms we already read from KEX_INIT.
+    # Fingerprints will be None in the fallback path.
+    try:
+        result.host_keys = get_host_keys(host, port, timeout)
+    except Exception as exc:
+        logger.debug("Host key collection via paramiko failed for %s:%d — %s", host, port, exc)
+        result.host_keys = []
+
+    if not result.host_keys and result.server_host_key_algorithms:
+        # Synthesise host key objects from the KEX_INIT advertisement.
+        # We know the algorithm names but not fingerprints.
+        # Key size is estimated from algorithm name.
+        seen = set()
+        for algo in result.server_host_key_algorithms:
+            if algo in seen:
+                continue
+            seen.add(algo)
+            key_size = _estimate_key_size(algo)
+            result.host_keys.append(SSHHostKey(
+                algorithm=algo,
+                key_size=key_size,
+                fingerprint=None,  # not available without completing handshake
+            ))
+
+    # 4. Software version analysis + capability gap
+    try:
+        if result.ssh_version:
+            software = parse_banner(result.ssh_version)
+            result.software_info = software.to_dict()
+            result.capability_gap = analyse_capability_gap(
+                software,
+                configured_kex=result.server_kex_algorithms,
+                configured_host_keys=result.server_host_key_algorithms,
+            )
+    except Exception as exc:
+        logger.debug("Software version analysis failed for %s:%d — %s", host, port, exc)
 
     result.scan_success = True
     return result

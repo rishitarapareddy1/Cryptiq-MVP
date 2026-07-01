@@ -5,6 +5,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+*.so
 
 # ── Virtual environments ──────────────────────────────────────────
 venv/
@@ -13,16 +14,22 @@ env/
 .env/
 ENV/
 
-# ── Databases ─────────────────────────────────────────────────────
+# ── Databases (SQLite — both scanners create these at runtime) ────
 *.db
 *.sqlite
 *.sqlite3
+cryptiq.db
+ssh_scanner.db
+cryptiq_test.db
+ssh_test.db
 
-# ── Scan output files ─────────────────────────────────────────────
+# ── Scan output files (generated at runtime by scanners) ──────────
 scan_results_*.json
 cbom_*.json
 *.cbom.json
 cryptiq_report_*.pdf
+out/
+out/audit.log
 
 # ── Logs ──────────────────────────────────────────────────────────
 *.log
@@ -37,8 +44,13 @@ logs/
 *.p12
 *.pfx
 id_rsa
+id_rsa.pub
 id_ed25519
+id_ed25519.pub
 id_ecdsa
+id_ecdsa.pub
+*.crt
+*.csr
 
 # ── OS ────────────────────────────────────────────────────────────
 .DS_Store
@@ -60,16 +72,66 @@ build/
 *.egg-info/
 .eggs/
 
-# ── Testing ───────────────────────────────────────────────────────
+# ── Testing — caches and coverage only, NEVER the tests themselves ─
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+coverage.xml
 
 # ── MyPy / type checking ──────────────────────────────────────────
 .mypy_cache/
 .dmypy.json
 
-# ── Tests ─────────────────────────────────────────────────────────
-pytest.ini
-tests/
+# ── Docker ──────────────────────────────────────────────────────────
+# Local override compose files (if you ever create one for personal use)
+docker-compose.override.yml
+docker-compose.local.yml
+docker*
+# Volume data if Docker ever writes bind-mounted data into the repo
+docker-data/
+.docker/
+
+# ── Terraform (demo-infra/) ──────────────────────────────────────
+# State files contain real resource IDs/ARNs and sometimes secrets —
+# never commit them. Lock files and plan output too.
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+crash.log
+crash.*.log
+# Allow example/template tfvars, block real ones
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+
+# ── Demo / reset script generated artifacts ────────────────────────
+demo-reset.log
+
+# ── Audit log (runtime-generated, append-only — never commit) ─────
+audit.log
+
+# ── Generated keys from ssh_migration/keygen.py test runs ─────────
+*_host_key
+*_host_key.pub
+ssh_host_*_key
+ssh_host_*_key.pub
+cryptiq-migration*
+
+# ── Node / Next.js (frontend/) ─────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.*.local
+frontend/next-env.d.ts
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.vercel/
+frontend/*.tsbuildinfo

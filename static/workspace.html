@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptiq — Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:#fdf6ec; --paper-2:#f3ecdc; --paper-card:#fffaf1;
+  --ink:#1a1410; --ink-soft:#3d342c; --ink-faint:#8a7c6c;
+  --coral:#ff5a3c; --coral-deep:#e8431f; --coral-glow:#ffe3da;
+  --teal:#1f7a6c; --teal-bright:#28a48f; --teal-glow:#dcf3ee;
+  --violet:#5b4ee5; --violet-deep:#4536c9; --violet-glow:#e8e5fb;
+  --amber:#c98a1f; --amber-glow:#fbedd2;
+  --line:#e8dcc6; --line-strong:#d9c8a8;
+  --serif:'Fraunces',serif; --sans:'Space Grotesk',system-ui,sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--paper);
+  background-image:
+    radial-gradient(circle at 8% 8%, var(--coral-glow) 0%, transparent 32%),
+    radial-gradient(circle at 95% 0%, var(--violet-glow) 0%, transparent 28%);
+  color:var(--ink); font-family:var(--sans); font-size:14.5px; line-height:1.6; min-height:100vh;
+}
+::selection{background:var(--coral);color:#fff;}
+
+/* ---- topbar ---- */
+.topbar{
+  display:flex; align-items:center; gap:16px; padding:0 28px; height:64px;
+  border-bottom:2.5px solid var(--ink); position:sticky; top:0; z-index:50;
+  background:var(--paper);
+}
+.brand{font-family:var(--serif); font-size:21px; font-weight:700; letter-spacing:-.02em;}
+.brand .dot{color:var(--coral);}
+.topbar-tag{font-family:var(--mono);font-size:10px;color:var(--violet-deep);background:var(--violet-glow);border:1.5px solid transparent;border-radius:20px;padding:3px 10px;letter-spacing:.04em;font-weight:500;}
+.topbar-spacer{flex:1;}
+.topbar-link{font-size:13px;font-weight:500;color:var(--ink-soft);text-decoration:none;padding:8px 14px;border-radius:8px;transition:.15s;}
+.topbar-link:hover{color:var(--ink);background:var(--paper-2);}
+
+.shell{max-width:960px;margin:0 auto;padding:56px 28px 140px;}
+
+/* ---- hero / intake ---- */
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;
+  color:var(--coral-deep);background:var(--coral-glow);border-radius:20px;padding:5px 13px 5px 9px;
+  margin-bottom:18px;letter-spacing:.04em;text-transform:uppercase;font-weight:500;
+}
+.hero-eyebrow .pip{width:6px;height:6px;border-radius:50%;background:var(--coral);}
+.hero-title{font-family:var(--serif);font-size:clamp(36px,6vw,54px);font-weight:700;letter-spacing:-.03em;line-height:1.04;margin-bottom:16px;}
+.hero-title .accent{color:var(--coral);font-style:italic;}
+.hero-sub{color:var(--ink-soft);font-size:16px;max-width:52ch;margin-bottom:42px;line-height:1.55;}
+
+.card{
+  background:var(--paper-card); border:2.5px solid var(--ink); border-radius:18px;
+  padding:30px 32px; margin-bottom:22px; position:relative;
+  box-shadow:6px 6px 0 var(--ink);
+}
+.card-title{font-family:var(--serif);font-size:21px;font-weight:600;margin-bottom:5px;}
+.card-sub{color:var(--ink-faint);font-size:13px;margin-bottom:22px;max-width:60ch;}
+
+.field-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+.field{flex:1;min-width:210px;display:flex;flex-direction:column;gap:7px;}
+.field label{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.07em;font-weight:500;}
+input[type=text],input[type=password]{
+  background:var(--paper); border:2px solid var(--line-strong); border-radius:10px;
+  color:var(--ink); font-family:var(--mono); font-size:13.5px; padding:12px 15px;
+  outline:none; transition:.15s;
+}
+input[type=text]:focus,input[type=password]:focus{border-color:var(--coral);background:#fff;}
+input::placeholder{color:var(--ink-faint);}
+
+.btn{
+  display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:11px;
+  font-size:14px;font-weight:600;cursor:pointer;border:2.5px solid var(--ink);
+  transition:.12s;font-family:var(--sans);box-shadow:3px 3px 0 var(--ink);
+}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);}
+.btn-primary{background:var(--coral);color:#fff;border-color:var(--coral-deep);box-shadow:3px 3px 0 var(--coral-deep);}
+.btn-primary:hover{background:var(--coral-deep);}
+.btn-ghost{background:var(--paper-card);color:var(--ink);}
+.btn-ghost:hover{background:var(--paper-2);}
+.btn-teal{background:var(--teal-bright);color:#fff;border-color:var(--teal);box-shadow:3px 3px 0 var(--teal);}
+.btn-teal:hover{background:var(--teal);}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none !important;}
+.btn-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+
+.spinner{width:14px;height:14px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.lite-card{
+  background:var(--violet-glow);border:2px dashed var(--violet);border-radius:16px;
+  padding:22px 26px;margin-bottom:30px;box-shadow:none;
+}
+
+/* ---- workspace identity ---- */
+.identity{
+  display:flex;align-items:center;gap:18px;padding:20px 26px;border-radius:16px;
+  background:var(--ink);color:var(--paper);margin-bottom:24px;flex-wrap:wrap;
+  box-shadow:6px 6px 0 var(--coral);
+}
+.identity-name{font-family:var(--serif);font-size:23px;font-weight:600;}
+.identity-domain{font-family:var(--mono);font-size:12.5px;color:#c9bda8;}
+.identity-spacer{flex:1;}
+.badge{font-family:var(--mono);font-size:10.5px;padding:5px 13px;border-radius:20px;letter-spacing:.03em;font-weight:500;}
+.badge-on{background:var(--teal-bright);color:#fff;}
+.badge-off{background:#4a3f33;color:#d4c8b5;}
+
+/* ---- IAM ---- */
+.iam-step{display:flex;gap:14px;padding:11px 0;border-bottom:1.5px dashed var(--line);font-size:13.5px;align-items:baseline;}
+.iam-step:last-child{border-bottom:none;}
+.iam-num{font-family:var(--serif);font-weight:700;font-size:14px;color:var(--coral);min-width:22px;}
+code.inline{font-family:var(--mono);background:var(--paper-2);padding:2px 7px;border-radius:5px;color:var(--ink);}
+pre.policy{
+  background:var(--ink);border-radius:12px;padding:20px 22px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.75;overflow-x:auto;color:#e8dcc6;
+  margin-top:14px;
+}
+pre.policy .k{color:#ffb38f;}
+pre.policy .s{color:#9fd9c8;}
+
+/* ---- THE DIAL — signature element ---- */
+.dial-wrap{
+  display:flex;align-items:center;gap:36px;flex-wrap:wrap;
+  background:var(--ink);border-radius:18px;padding:32px 34px;margin-bottom:24px;
+  box-shadow:6px 6px 0 var(--violet);
+}
+.dial{position:relative;width:140px;height:140px;flex-shrink:0;}
+.dial svg{transform:rotate(-90deg);}
+.dial-track{fill:none;stroke:#3d342c;stroke-width:10;}
+.dial-fill{fill:none;stroke:var(--coral);stroke-width:10;stroke-linecap:round;
+  stroke-dasharray:377; stroke-dashoffset:377; transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1);}
+.dial-fill.done{stroke:var(--teal-bright);}
+.dial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dial-num{font-family:var(--serif);font-size:30px;font-weight:700;color:var(--paper);font-variant-numeric:tabular-nums;line-height:1;}
+.dial-den{font-family:var(--mono);font-size:10.5px;color:#9b8d78;margin-top:3px;}
+.dial-info{flex:1;min-width:200px;}
+.dial-status{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  padding:5px 13px;border-radius:20px;display:inline-flex;align-items:center;gap:7px;margin-bottom:10px;font-weight:500;}
+.dial-status.pending{background:#3d342c;color:#b8ab95;}
+.dial-status.running{background:var(--violet);color:#fff;}
+.dial-status.complete{background:var(--teal-bright);color:#fff;}
+.dial-status.failed{background:var(--coral);color:#fff;}
+.dial-headline{font-family:var(--serif);font-size:19px;color:var(--paper);font-weight:600;margin-bottom:4px;}
+.dial-sub{font-family:var(--mono);font-size:12px;color:#9b8d78;}
+.pip-live{width:7px;height:7px;border-radius:50%;background:#3d2a08;animation:blink 1.1s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ---- register ---- */
+.register-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.register-title{font-family:var(--serif);font-size:24px;font-weight:700;}
+.register-meta{font-family:var(--mono);font-size:12px;color:var(--ink-faint);}
+
+.table-wrap{border:2.5px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:6px 6px 0 var(--ink);}
+table.register{width:100%;border-collapse:collapse;background:var(--paper-card);}
+table.register th{
+  font-family:var(--mono);font-size:10.5px;color:var(--paper);background:var(--ink);text-transform:uppercase;
+  letter-spacing:.06em;text-align:left;padding:13px 16px;
+}
+table.register td{
+  font-family:var(--mono);font-size:12.5px;padding:13px 16px;border-bottom:1.5px solid var(--line);
+  vertical-align:middle;
+}
+table.register tr:last-child td{border-bottom:none;}
+table.register tr:hover td{background:var(--paper-2);}
+.domain-cell{color:var(--ink);font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.risk-pill{font-family:var(--sans);font-size:11px;font-weight:600;padding:3px 11px;border-radius:20px;display:inline-block;}
+.risk-Critical,.risk-critical{background:#3d0e04;color:#ffb9a3;}
+.risk-High,.risk-high{background:var(--coral-glow);color:var(--coral-deep);}
+.risk-Medium,.risk-medium{background:var(--amber-glow);color:#8a5a0c;}
+.risk-Low,.risk-low{background:var(--teal-glow);color:var(--teal);}
+.qv-yes{color:var(--coral-deep);font-weight:600;}
+.qv-no{color:var(--teal);font-weight:600;}
+
+.empty{text-align:center;padding:56px 24px;}
+.empty-icon{font-family:var(--serif);font-size:34px;margin-bottom:12px;}
+.empty-title{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--ink-faint);}
+
+#toast{
+  position:fixed;bottom:26px;right:26px;background:var(--ink);color:var(--paper);
+  border-radius:12px;padding:13px 20px;font-size:13.5px;font-weight:500;
+  box-shadow:5px 5px 0 var(--coral);
+  transform:translateY(90px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:999;max-width:340px;
+}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.error{box-shadow:5px 5px 0 var(--coral);}
+#toast.success{box-shadow:5px 5px 0 var(--teal-bright);}
+
+.divider{border:none;border-top:2.5px dashed var(--line-strong);margin:42px 0;}
+
+@media(max-width:640px){
+  .shell{padding:38px 18px 110px;}
+  .card{padding:24px 22px;box-shadow:4px 4px 0 var(--ink);}
+  .dial-wrap{flex-direction:column;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">cryptiq<span class="dot">.</span>workspace</div>
+  <div class="topbar-tag">v1.0</div>
+  <div class="topbar-spacer"></div>
+  <a href="/" class="topbar-link">Home</a>
+  <a href="/docs" class="topbar-link" target="_blank">API docs ↗</a>
+</header>
+
+<main class="shell">
+
+  <!-- INTAKE -->
+  <div id="intake-view">
+    <div class="hero-eyebrow"><span class="pip"></span>The quantum clock is running</div>
+    <h1 class="hero-title">Open a <span class="accent">workspace</span>,<br>find what's exposed.</h1>
+    <p class="hero-sub">One workspace per organisation. Give it a name and a root domain — Cryptiq pulls every subdomain straight out of certificate transparency logs and gets scanning.</p>
+
+    <div class="card">
+      <div class="card-title">Start a new case</div>
+      <div class="card-sub">Takes about ten seconds. No credit card, no calendar invite.</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Organisation name</label>
+          <input type="text" id="ws-org" placeholder="Acme Corp">
+        </div>
+        <div class="field">
+          <label>Root domain</label>
+          <input type="text" id="ws-domain" placeholder="acme.com">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="create-btn" onclick="createWorkspace()">Open workspace →</button>
+      </div>
+    </div>
+
+    <div class="lite-card">
+      <div class="card-title" style="font-size:15px;margin-bottom:14px;">Already have one open?</div>
+      <div class="field-row" style="margin-bottom:0;align-items:flex-end;">
+        <div class="field" style="max-width:160px;">
+          <label>Workspace ID</label>
+          <input type="text" id="load-id" placeholder="3">
+        </div>
+        <button class="btn btn-ghost" onclick="loadWorkspace()">Jump back in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE VIEW -->
+  <div id="workspace-view" style="display:none;">
+
+    <div class="identity">
+      <div>
+        <div class="identity-name" id="ws-name-display">—</div>
+        <div class="identity-domain" id="ws-domain-display">—</div>
+      </div>
+      <div class="identity-spacer"></div>
+      <span class="badge" id="aws-badge">AWS not connected</span>
+    </div>
+
+    <!-- AWS CONNECT -->
+    <div class="card" id="aws-card">
+      <div class="card-title">Connect AWS</div>
+      <div class="card-sub">Cryptiq reads ACM certificates, KMS keys, Route53 records, and EC2 hosts — read-only, nothing is ever modified. Keys are encrypted at rest and never appear in logs.</div>
+
+      <div class="iam-step"><span class="iam-num">1</span><span>Create an IAM user in your AWS account named <code class="inline">cryptiq-scanner</code>.</span></div>
+      <div class="iam-step"><span class="iam-num">2</span><span>Attach this inline policy exactly as written below.</span></div>
+      <div class="iam-step"><span class="iam-num">3</span><span>Generate an access key for that user and drop both values in here.</span></div>
+
+      <pre class="policy">{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [{
+    <span class="k">"Effect"</span>: <span class="s">"Allow"</span>,
+    <span class="k">"Action"</span>: [
+      <span class="s">"acm:ListCertificates"</span>,
+      <span class="s">"acm:DescribeCertificate"</span>,
+      <span class="s">"kms:ListKeys"</span>,
+      <span class="s">"kms:DescribeKey"</span>,
+      <span class="s">"ec2:DescribeInstances"</span>,
+      <span class="s">"route53:ListHostedZones"</span>,
+      <span class="s">"route53:ListResourceRecordSets"</span>,
+      <span class="s">"elasticloadbalancing:DescribeListeners"</span>,
+      <span class="s">"elasticloadbalancing:DescribeLoadBalancers"</span>
+    ],
+    <span class="k">"Resource"</span>: <span class="s">"*"</span>
+  }]
+}</pre>
+
+      <div class="field-row" style="margin-top:24px;">
+        <div class="field">
+          <label>Access key ID</label>
+          <input type="text" id="aws-key" placeholder="AKIA...">
+        </div>
+        <div class="field">
+          <label>Secret access key</label>
+          <input type="password" id="aws-secret" placeholder="••••••••••••••••">
+        </div>
+        <div class="field" style="max-width:150px;">
+          <label>Region</label>
+          <input type="text" id="aws-region" placeholder="us-east-1" value="us-east-1">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-teal" id="connect-aws-btn" onclick="connectAWS()">Connect AWS account</button>
+      </div>
+    </div>
+
+    <!-- SCAN -->
+    <div class="card">
+      <div class="card-title">Run a scan</div>
+      <div class="card-sub">Discovers every subdomain from certificate transparency logs, then checks each one's TLS posture. Runs in the background — close the tab if you want, the dial will be waiting when you're back.</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="scan-btn" onclick="startScan()">
+          <span id="scan-btn-text">Start scan →</span>
+        </button>
+        <button class="btn btn-ghost" onclick="loadResults()">Refresh</button>
+        <button class="btn btn-ghost" onclick="downloadCBOM()">Export CBOM</button>
+      </div>
+    </div>
+
+    <!-- THE DIAL -->
+    <div id="progress-section" style="display:none;">
+      <div class="dial-wrap">
+        <div class="dial">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="dial-track" cx="70" cy="70" r="60"></circle>
+            <circle class="dial-fill" id="dial-fill" cx="70" cy="70" r="60"></circle>
+          </svg>
+          <div class="dial-center">
+            <div class="dial-num" id="dial-num">0</div>
+            <div class="dial-den" id="dial-den">of 0</div>
+          </div>
+        </div>
+        <div class="dial-info">
+          <div class="dial-status pending" id="dial-status"><span class="pip-live" id="dial-pip" style="display:none;"></span><span id="dial-status-text">pending</span></div>
+          <div class="dial-headline" id="dial-headline">Waiting to start</div>
+          <div class="dial-sub" id="dial-sub">domains scanned · live count</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- RESULTS REGISTER -->
+    <div class="register-head">
+      <div class="register-title">Findings</div>
+      <div class="register-meta" id="register-meta">—</div>
+    </div>
+    <div id="results-content">
+      <div class="empty">
+        <div class="empty-icon">◐</div>
+        <div class="empty-title">Nothing here yet</div>
+        <div class="empty-sub">Run a scan above and findings will land in this table.</div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+<div id="toast"></div>
+
+<script>
+let CURRENT_WS = null;
+let POLL_TIMER = null;
+let _cbomData = null;
+const CIRC = 2 * Math.PI * 60; // 377
+
+let _tt;
+function toast(msg, type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+type;
+  clearTimeout(_tt); _tt=setTimeout(()=>el.className='',3600);
+}
+
+async function createWorkspace(){
+  const org = document.getElementById('ws-org').value.trim();
+  const domain = document.getElementById('ws-domain').value.trim().toLowerCase();
+  if(!org || !domain){ toast('Enter both organisation name and root domain','error'); return; }
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Opening…';
+  try{
+    const res = await fetch('/workspace', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({org_name: org, root_domain: domain})
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    CURRENT_WS = data;
+    enterWorkspace(data);
+    toast('Workspace opened','success');
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }finally{
+    btn.disabled=false; btn.textContent='Open workspace →';
+  }
+}
+
+async function loadWorkspace(){
+  const id = document.getElementById('load-id').value.trim();
+  if(!id){ toast('Enter a workspace ID','error'); return; }
+  try{
+    const res = await fetch(`/workspace/${id}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    CURRENT_WS = data;
+    enterWorkspace(data);
+    loadResults();
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }
+}
+
+function enterWorkspace(ws){
+  document.getElementById('intake-view').style.display='none';
+  document.getElementById('workspace-view').style.display='block';
+  document.getElementById('ws-name-display').textContent = ws.org_name;
+  document.getElementById('ws-domain-display').textContent = ws.root_domain;
+  const badge = document.getElementById('aws-badge');
+  if(ws.aws_connected){
+    badge.textContent = 'AWS connected';
+    badge.className = 'badge badge-on';
+  } else {
+    badge.textContent = 'AWS not connected';
+    badge.className = 'badge badge-off';
+  }
+}
+
+async function connectAWS(){
+  const key = document.getElementById('aws-key').value.trim();
+  const secret = document.getElementById('aws-secret').value.trim();
+  const region = document.getElementById('aws-region').value.trim() || 'us-east-1';
+  if(!key || !secret){ toast('Enter both access key and secret key','error'); return; }
+  const btn = document.getElementById('connect-aws-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Connecting…';
+  try{
+    const res = await fetch(`/workspace/${CURRENT_WS.id}/connect/aws`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({aws_access_key:key, aws_secret_key:secret, aws_region:region})
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    CURRENT_WS = data;
+    const badge = document.getElementById('aws-badge');
+    badge.textContent = 'AWS connected';
+    badge.className = 'badge badge-on';
+    document.getElementById('aws-key').value='';
+    document.getElementById('aws-secret').value='';
+    toast('AWS account connected','success');
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }finally{
+    btn.disabled=false; btn.textContent='Connect AWS account';
+  }
+}
+
+async function startScan(){
+  if(!CURRENT_WS){ toast('Open a workspace first','error'); return; }
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  document.getElementById('scan-btn-text').innerHTML = '<span class="spinner"></span> Starting…';
+  try{
+    const res = await fetch(`/workspace/${CURRENT_WS.id}/scan`, {method:'POST'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById('progress-section').style.display='block';
+    toast('Scan started','success');
+    pollStatus(CURRENT_WS.id, data.job_id);
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }finally{
+    btn.disabled=false;
+    document.getElementById('scan-btn-text').textContent='Start scan →';
+  }
+}
+
+function setDial(status, found, scanned){
+  const fill = document.getElementById('dial-fill');
+  const num = document.getElementById('dial-num');
+  const den = document.getElementById('dial-den');
+  const statusBox = document.getElementById('dial-status');
+  const statusText = document.getElementById('dial-status-text');
+  const pip = document.getElementById('dial-pip');
+  const headline = document.getElementById('dial-headline');
+  const sub = document.getElementById('dial-sub');
+
+  found = found || 0; scanned = scanned || 0;
+  num.textContent = scanned;
+  den.textContent = 'of ' + found;
+  const pct = found > 0 ? Math.min(scanned/found, 1) : 0;
+  fill.style.strokeDashoffset = CIRC - (pct * CIRC);
+  fill.classList.toggle('done', status === 'complete');
+
+  statusBox.className = 'dial-status ' + status;
+  statusText.textContent = status;
+  pip.style.display = status === 'running' ? 'inline-block' : 'none';
+
+  const headlines = {
+    pending: 'Waiting to start',
+    running: 'Scanning your attack surface',
+    complete: 'Scan complete',
+    failed: 'Scan hit a snag'
+  };
+  headline.textContent = headlines[status] || status;
+  sub.textContent = found ? `${scanned} of ${found} domains scanned` : 'spinning up…';
+}
+
+async function pollStatus(wsId, jobId){
+  clearInterval(POLL_TIMER);
+  const tick = async () => {
+    try{
+      const res = await fetch(`/workspace/${wsId}/scan/${jobId}/status`);
+      if(!res.ok) return;
+      const job = await res.json();
+      setDial(job.status, job.domains_found, job.domains_scanned);
+      loadResults();
+      if(job.status === 'complete' || job.status === 'failed'){
+        clearInterval(POLL_TIMER);
+        if(job.status==='complete') toast('Scan complete','success');
+        if(job.status==='failed') toast('Scan failed: '+(job.error||'unknown error'),'error');
+      }
+    }catch(e){}
+  };
+  tick();
+  POLL_TIMER = setInterval(tick, 5000);
+}
+
+function riskClass(r){ return 'risk-' + (r||'unknown'); }
+
+async function loadResults(){
+  if(!CURRENT_WS) return;
+  try{
+    const res = await fetch(`/workspace/${CURRENT_WS.id}/results`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const results = data.results || [];
+    document.getElementById('register-meta').textContent = `${results.length} record${results.length===1?'':'s'}`;
+    if(!results.length){
+      document.getElementById('results-content').innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">◐</div>
+          <div class="empty-title">Nothing here yet</div>
+          <div class="empty-sub">Run a scan above and findings will land in this table.</div>
+        </div>`;
+      return;
+    }
+    const rows = results.map(r => `
+      <tr>
+        <td class="domain-cell">${r.domain}</td>
+        <td>${r.tls_version||'—'}</td>
+        <td>${r.algorithm||'—'}</td>
+        <td class="${r.quantum_vulnerable?'qv-yes':'qv-no'}">${r.quantum_vulnerable?'Yes':'No'}</td>
+        <td><span class="risk-pill ${riskClass(r.risk_level)}">${r.risk_level||'—'}</span></td>
+        <td style="color:var(--ink-faint);font-size:11px;">${r.scanned_at ? new Date(r.scanned_at).toLocaleTimeString() : '—'}</td>
+      </tr>`).join('');
+    document.getElementById('results-content').innerHTML = `
+      <div class="table-wrap">
+        <table class="register">
+          <thead><tr><th>Domain</th><th>TLS</th><th>Algorithm</th><th>Quantum vuln</th><th>Risk</th><th>Scanned</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }catch(e){
+    toast('Failed to load results: '+e.message,'error');
+  }
+}
+
+async function downloadCBOM(){
+  if(!CURRENT_WS){ toast('Open a workspace first','error'); return; }
+  try{
+    const res = await fetch(`/workspace/${CURRENT_WS.id}/cbom`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    _cbomData = await res.json();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(_cbomData,null,2)],{type:'application/json'}));
+    a.download = `cryptiq_cbom_workspace_${CURRENT_WS.id}.json`;
+    a.click();
+    toast('CBOM downloaded','success');
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }
+}
+</script>
+</body>
+</html>
