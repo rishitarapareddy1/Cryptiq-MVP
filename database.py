@@ -102,7 +102,13 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///cryptiq.db")
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=2,
+        pool_timeout=30,
+        pool_pre_ping=True,
+    )
 
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)

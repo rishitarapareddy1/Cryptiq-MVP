@@ -213,8 +213,12 @@ def get_engine(database_url: str = DATABASE_URL):
     kwargs = {}
     if database_url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        kwargs["pool_size"] = 5
+        kwargs["max_overflow"] = 2
+        kwargs["pool_timeout"] = 30
+        kwargs["pool_pre_ping"] = True
     return create_engine(database_url, **kwargs)
-
 
 def create_tables(engine=None) -> None:
     if engine is None:
