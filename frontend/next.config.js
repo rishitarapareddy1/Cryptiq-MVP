@@ -7,6 +7,7 @@ const API_ONLY_PREFIXES = [
   "/discover",
   "/scans",
   "/aws",
+  "/workspace",  // back here — pure API
   "/audit-log",
   "/health",
   "/docs",
@@ -14,10 +15,7 @@ const API_ONLY_PREFIXES = [
   "/openapi.json",
 ];
 
-// These are BOTH Next.js pages AND API prefixes
-// Only rewrite sub-paths (e.g. /ssh/scan), not the bare path (e.g. /ssh)
 const PAGE_AND_API_PREFIXES = [
-  "/workspace",
   "/ssh",
   "/migrate",
 ];
