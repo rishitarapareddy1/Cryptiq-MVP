@@ -134,4 +134,5 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.vercel/
-frontend/*.tsbuildinfo
+frontend/*.tsbuildinfocbom_*.json
+scan_results_*.json
