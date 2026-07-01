@@ -54,7 +54,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -521,9 +521,11 @@ class WorkspaceSSHScanRequest(BaseModel):
     hosts: Optional[list[str]] = None
 
 @app.post("/workspace/{workspace_id}/scan/ssh", tags=["workspace"])
-def workspace_ssh_scan(workspace_id: int, background_tasks: BackgroundTasks, request: WorkspaceSSHScanRequest = None):
-    if request is None:
-        request = WorkspaceSSHScanRequest()
+def workspace_ssh_scan(
+    workspace_id: int,
+    background_tasks: BackgroundTasks,
+    request: WorkspaceSSHScanRequest = Body(default_factory=WorkspaceSSHScanRequest)
+):
     session = DBSession()
     try:
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
