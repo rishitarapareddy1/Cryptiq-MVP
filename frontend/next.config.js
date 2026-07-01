@@ -23,15 +23,17 @@ const API_PREFIXES = [
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
-    return API_PREFIXES.map((prefix) => ({
-      source: `${prefix}/:path*`,
-      destination: `${API_URL}${prefix}/:path*`,
-    })).concat(
-      API_PREFIXES.map((prefix) => ({
-        source: prefix,
-        destination: `${API_URL}${prefix}`,
-      }))
-    );
+    return {
+      beforeFiles: API_PREFIXES.map((prefix) => ({
+        source: `${prefix}/:path*`,
+        destination: `${API_URL}${prefix}/:path*`,
+      })).concat(
+        API_PREFIXES.map((prefix) => ({
+          source: prefix,
+          destination: `${API_URL}${prefix}`,
+        }))
+      ),
+    };
   },
 };
 

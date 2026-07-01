@@ -67,6 +67,7 @@ export default function WorkspacePage() {
   const sshFound = sshJob?.domains_found || 0;
   const sshScanned = sshJob?.domains_scanned || 0;
   const sshDialOffset = CIRC - (sshFound > 0 ? Math.min(sshScanned / sshFound, 1) : 0) * CIRC;
+  const [sshHosts, setSshHosts] = useState("");
 
   useEffect(() => {
     return () => {
@@ -183,7 +184,13 @@ export default function WorkspacePage() {
     if (!ws) { toast("Open a workspace first", "error"); return; }
     setSshScanning(true);
     try {
-      const res = await fetch(`/workspace/${ws.id}/scan/ssh`, { method: "POST" });
+      const manualHosts = sshHosts.trim().split("\n").map(h => h.trim()).filter(Boolean);
+      const body = manualHosts.length ? { hosts: manualHosts } : {};
+      const res = await fetch(`/workspace/${ws.id}/scan/ssh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSshJob({ status: "pending" });
@@ -402,6 +409,15 @@ export default function WorkspacePage() {
                 Discovers EC2 hosts from your connected AWS account and scans each one for
                 SSH cryptographic posture — host keys, key exchange algorithms, ciphers, and PQC readiness.
               </div>
+              <div className="field" style={{ marginTop: 14, marginBottom: 14 }}>
+                <label>Or enter specific hosts manually (one per line)</label>
+                <textarea
+                  value={sshHosts}
+                  onChange={(e) => setSshHosts(e.target.value)}
+                  placeholder={"192.168.1.1\ngithub.com\nmyserver.example.com"}
+                  rows={3}
+                />
+              </div>
               <div className="btn-row">
                 <button className="btn btn-primary" disabled={sshScanning} onClick={startSSHScan}>
                   {sshScanning ? <span className="spinner" /> : null} Scan SSH hosts →
@@ -433,7 +449,11 @@ export default function WorkspacePage() {
                   </div>
                   <div className="dial-headline">{headlines[sshJob.status]}</div>
                   <div className="dial-sub">
-                    {sshFound ? `${sshScanned} of ${sshFound} hosts scanned` : "discovering hosts…"}
+                    {sshFound > 0
+                      ? `${sshScanned} of ${sshFound} hosts scanned`
+                      : sshJob?.status === "complete"
+                      ? "No EC2 hosts found — check AWS is connected and instances are running"
+                      : "discovering hosts…"}
                   </div>
                 </div>
               </div>

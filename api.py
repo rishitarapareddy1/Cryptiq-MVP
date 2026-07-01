@@ -518,10 +518,13 @@ def workspace_cbom(workspace_id: int):
     finally:
         session.close()
 
+class WorkspaceSSHScanRequest(BaseModel):
+    hosts: Optional[list[str]] = None
 
 @app.post("/workspace/{workspace_id}/scan/ssh", tags=["workspace"])
-def workspace_ssh_scan(workspace_id: int, background_tasks: BackgroundTasks):
-    """Start a background SSH scan job for all EC2 hosts in this workspace."""
+def workspace_ssh_scan(workspace_id: int, background_tasks: BackgroundTasks, request: WorkspaceSSHScanRequest = None):
+    if request is None:
+        request = WorkspaceSSHScanRequest()
     session = DBSession()
     try:
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
@@ -534,13 +537,11 @@ def workspace_ssh_scan(workspace_id: int, background_tasks: BackgroundTasks):
         job_id = job.id
     finally:
         session.close()
+    background_tasks.add_task(run_workspace_ssh_scan, workspace_id, job_id, request.hosts)
+    return {"job_id": job_id, "status": "pending", "message": "SSH scan started"}
 
-    background_tasks.add_task(run_workspace_ssh_scan, workspace_id, job_id)
-    return {"job_id": job_id, "status": "pending", "message": f"SSH scan started — poll /workspace/{workspace_id}/scan/{job_id}/status"}
 
-
-def run_workspace_ssh_scan(workspace_id: int, job_id: int):
-    """Background task: discover EC2 hosts and SSH scan them."""
+def run_workspace_ssh_scan(workspace_id: int, job_id: int, manual_hosts: Optional[list[str]] = None):
     session = DBSession()
     try:
         job = session.query(ScanJob).filter(ScanJob.id == job_id).first()
@@ -548,8 +549,12 @@ def run_workspace_ssh_scan(workspace_id: int, job_id: int):
         session.commit()
 
         workspace = session.query(Workspace).filter(Workspace.id == workspace_id).first()
-        assets = discover_assets(workspace.root_domain, workspace.aws_region or "us-east-1")
-        hosts = assets.get("hosts", [])
+
+        if manual_hosts:
+            hosts = manual_hosts
+        else:
+            assets = discover_assets(workspace.root_domain, workspace.aws_region or "us-east-1")
+            hosts = assets.get("hosts", [])
 
         job.domains_found = len(hosts)
         session.commit()
@@ -567,7 +572,6 @@ def run_workspace_ssh_scan(workspace_id: int, job_id: int):
             try:
                 risk = assess_risk_from_scan(r)
                 record = save_scan(db, r, risk)
-                # tag with workspace_id
                 record.workspace_id = workspace_id
                 db.commit()
                 scanned += 1
@@ -588,7 +592,6 @@ def run_workspace_ssh_scan(workspace_id: int, job_id: int):
             session.commit()
     finally:
         session.close()
-
 
 @app.get("/workspace/{workspace_id}/ssh/results", tags=["workspace"])
 def workspace_ssh_results(workspace_id: int):
