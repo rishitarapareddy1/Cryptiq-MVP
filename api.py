@@ -57,7 +57,6 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from fastapi.background import BackgroundTasks
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
