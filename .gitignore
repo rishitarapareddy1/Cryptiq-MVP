@@ -92,6 +92,16 @@ docker*
 # Volume data if Docker ever writes bind-mounted data into the repo
 docker-data/
 .docker/
+# NOTE: the bare `docker*` line above is broad enough to also match
+# docker-compose.yml, docker-compose.fleet.yml, and the new
+# docker-compose.tools-fleet.yml/Dockerfile.pwhash_target from the code
+# signing / password hashing delivery — those are meant to be committed,
+# not ignored. Un-ignoring the new ones explicitly (run `git status` to
+# check whether docker-compose.yml/.fleet.yml are already tracked from
+# before this line existed — untracked files matching `docker*` won't be
+# picked up by `git add` without `-f`):
+!docker-compose.tools-fleet.yml
+!pwhash_samples/Dockerfile.pwhash_target
 
 # ── Terraform (demo-infra/) ──────────────────────────────────────
 # State files contain real resource IDs/ARNs and sometimes secrets —
@@ -122,6 +132,33 @@ audit.log
 ssh_host_*_key
 ssh_host_*_key.pub
 cryptiq-migration*
+
+# ── Code Signing (code_signing/) ───────────────────────────────────
+# Runtime databases already covered by the blanket *.db rule above;
+# explicit names here just for clarity/documentation, same style as the
+# cryptiq.db/ssh_scanner.db entries above.
+codesign.db
+codesign_test.db
+# Per-file signature sidecars written next to every signed file by every
+# sign operation (sign_file/sign_directory). These are regenerated on
+# every run and tied to a specific signing key + timestamp — never commit
+# them, and this pattern catches them no matter which directory they land
+# in (including demo_signing_artifacts/ after a local test run):
+*.cryptiq.sig.json
+# CODESIGN_KEY_DIR defaults to ~/.cryptiq/codesign_keys, already outside
+# the repo — but if it's ever pointed at an in-repo path for local dev
+# (e.g. CODESIGN_KEY_DIR=./codesign_keys), make sure private key material
+# can never accidentally get committed:
+codesign_keys/
+.cryptiq/
+
+# ── Password Hashing (password_hashing/) ───────────────────────────
+# Runtime database already covered by *.db above; explicit name for
+# clarity. Nothing else is written to disk by this product — every scan
+# is paste-in/paste-out, no sidecar files, no key material, ever.
+password_hashing.db
+password_hashing_test.db
+pwhash_test.db
 
 # ── Node / Next.js (frontend/) ─────────────────────────────────────
 frontend/node_modules/

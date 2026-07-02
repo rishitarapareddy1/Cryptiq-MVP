@@ -1,0 +1,5 @@
+# Sample PAN-OS set-format config excerpt for testing the PAN-OS tab.
+
+set mgt-config users admin phash $6$rounds=656000$saltsalt1234$X9k2m5nJ8qP1vR7tYcL3wZ0aB6dE4fG2hI5jK8lM1nO4pQ7rS0tU3vW6xY
+set mgt-config users legacyadmin phash $1$oldsalt$8fK2mN5qP9rT3vW6xY0aB3dE7f
+set shared local-user-database user vpnuser phash $6$rounds=656000$vpnsalt$hashvaluehashvaluehashvaluehashvaluehashvalue

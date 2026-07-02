@@ -1,0 +1,22 @@
+# Minimal container with a deliberately mixed-strength /etc/shadow for
+# password-hashing demo purposes. Not reachable over the network -- shadow
+# files were never meant to be, by design. Use `docker exec` to read it,
+# same as you'd need real shell access on a real box.
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -q && apt-get install -y -q openssl passwd && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash bob && \
+    useradd -m -s /bin/bash carol && \
+    useradd -m -s /bin/bash alice && \
+    echo 'root:CryptiqDemoRoot!' | chpasswd && \
+    echo 'bob:CryptiqDemoBob!' | chpasswd && \
+    echo 'carol:CryptiqDemoCarol!' | chpasswd && \
+    # bob/carol/root get whatever this distro's current default is
+    # (Ubuntu 22.04+ defaults to yescrypt) -- explicitly force alice onto
+    # MD5 crypt so there's a guaranteed "weak" example regardless of
+    # base-image defaults:
+    usermod -p "$(openssl passwd -1 -salt demomd5 'CryptiqDemoAlice!')" alice
+
+CMD ["sleep", "infinity"]

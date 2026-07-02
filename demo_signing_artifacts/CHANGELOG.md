@@ -1,0 +1,1 @@
+This changelog is not signed by default (no .md in the signable map) unless you check 'sign every file'.

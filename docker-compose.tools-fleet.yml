@@ -1,0 +1,38 @@
+version: "3.9"
+
+# ── Cryptiq Tools Fleet — Code Signing & Password Hashing ────────────────
+# Companion to docker-compose.fleet.yml (which covers SSH targets).
+# Run Cryptiq separately: python api.py
+#
+# Usage:
+#   docker compose -f docker-compose.tools-fleet.yml up -d --build
+#   docker compose -f docker-compose.tools-fleet.yml down
+#
+# What this gives you:
+#   - pwhash_target: a container with a real, deliberately mixed-strength
+#     /etc/shadow. `docker exec` in, cat it, paste into the Linux tab.
+#     (Password hash files are never meant to be network-reachable — this
+#     mirrors how you'd actually get this data off a real box: shell
+#     access, not a socket.)
+#
+# Code signing doesn't need a target container at all — it signs whatever
+# directory Cryptiq itself can see on disk. See demo_signing_artifacts/ in
+# the repo root: point the "Discover & Sign" page at that path directly
+# (or at `/app/demo_signing_artifacts` if you're running Cryptiq inside
+# docker-compose.yml's bind-mounted container).
+#
+# Cisco IOS and PAN-OS aren't Dockerizable (proprietary firmware, no public
+# images) — use pwhash_samples/sample_cisco_ios.txt and
+# pwhash_samples/sample_panos.txt to paste into those tabs instead. Same
+# for the Windows tab: pwhash_samples/sample_windows_dump.txt stands in
+# for real secretsdump/pwdump output, which you'd normally get from a tool
+# you already run against a real Windows box, not from Cryptiq itself.
+
+services:
+  pwhash_target:
+    build:
+      context: ./pwhash_samples
+      dockerfile: Dockerfile.pwhash_target
+    container_name: cryptiq_pwhash_target
+    restart: unless-stopped
+    # No ports exposed on purpose — see comment above.

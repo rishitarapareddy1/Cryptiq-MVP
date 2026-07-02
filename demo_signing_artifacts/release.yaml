@@ -1,0 +1,4 @@
+release:
+  name: cryptiq-demo
+  version: 1.0.0
+  channel: stable

@@ -1,0 +1,6 @@
+# Sample secretsdump/pwdump-format output for testing the Windows tab.
+# (Throwaway example hashes, not real credentials.)
+
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+svc_backup:1105:01fc5a6be7bc6929aad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:::
+jsmith:1108:aad3b435b51404eeaad3b435b51404ee:5835048ce94ad0564e29a924a03510ef:::
