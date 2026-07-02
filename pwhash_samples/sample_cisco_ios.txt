@@ -1,0 +1,13 @@
+! Sample running-config excerpt for testing the Cisco IOS tab.
+!
+hostname core-sw01
+!
+username admin secret 9 $9$Vk8P$8fK2mN5qP9rT3vW6xY0aB3dE7fG1hI4jK
+username netops password 7 0822455D0A16
+enable secret 5 $1$mERr$hx5rVt7rPNoS4wqbXKX7m0
+!
+line vty 0 4
+ password 7 104D000A0618
+ login
+!
+end

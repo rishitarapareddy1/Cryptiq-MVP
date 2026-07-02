@@ -32,6 +32,12 @@ Routes:
     POST /migrate/alb-tls/rollback   — propose a rollback PR
     GET  /audit-log                  — append-only record of all migration actions
 
+  Code signing endpoints (from code_signing/):
+    All mounted under /codesign/...
+
+  Password hashing endpoints (from password_hashing/):
+    All mounted under /pwhash/...
+
   Workspace endpoints (multi-tenant, from database.py):
     POST /workspace                              — create a workspace
     GET  /workspace/{id}                         — get workspace
@@ -39,6 +45,8 @@ Routes:
     POST /workspace/{id}/scan                    — start background discovery+scan
     GET  /workspace/{id}/scan/{job_id}/status    — poll job status
     GET  /workspace/{id}/results                 — get all scan results for workspace
+    POST /workspace/{id}/scan/ssh                — start background SSH discovery+scan
+    GET  /workspace/{id}/ssh/results              — get all SSH scan results for workspace
 
 SAFETY INVARIANT (see CLAUDE.md):
   The ALB migration endpoints (/migrate/alb-tls*) NEVER mutate AWS resources
@@ -98,6 +106,12 @@ from ssh_scanner.ssh_report import generate_report
 # ── SSH migration router (mounted as a sub-router) ──────────────────────────
 from ssh_migration.api import router as migration_router
 
+# ── Code signing router ──────────────────────────────────────────────────
+from code_signing.api import router as codesign_router
+
+# ── Password hashing router ──────────────────────────────────────────────
+from password_hashing.api import router as pwhash_router
+
 logger = logging.getLogger(__name__)
 
 # Silence paramiko's internal thread exceptions — expected when the scanner
@@ -135,6 +149,12 @@ def startup():
 
 # Mount SSH migration router
 app.include_router(migration_router)
+
+# Mount code signing router
+app.include_router(codesign_router)
+
+# Mount password hashing router
+app.include_router(pwhash_router)
 
 
 @app.get("/health", tags=["meta"])

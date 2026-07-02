@@ -1,0 +1,10 @@
+# Sample /etc/shadow-format content for testing the Linux tab.
+# Mix of weak/medium/strong so you can see the risk spread.
+# (These are throwaway example hashes, not real credentials.)
+
+root:$6$rootsalt$X9k2m5nJ8qP1vR7tYcL3wZ0aB6dE4fG2hI5jK8lM1nO4pQ7rS0tU3vW6xY9zA2bC5dE8fG1hI4jK7lM0nO3pQ6rS9tU2vW5xY8zA1bC:19700:0:99999:7:::
+alice:$1$md5salt$8fK2mN5qP9rT3vW6xY0aB3dE7fG1hI4:19700:0:99999:7:::
+bob:$y$j9T$bobsaltvalue$strongyescryptexamplehashvaluehere12345:19700:0:99999:7:::
+carol:$2b$12$KIXQ1z5z5z5z5z5z5z5z5uQ1z5z5z5z5z5z5z5z5z5z5z5z5z5z:19700:0:99999:7:::
+legacy:abcdefghijklm:19700:0:99999:7:::
+locked:!:19700:0:99999:7:::
